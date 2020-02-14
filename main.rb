@@ -5,9 +5,10 @@ require './lib.rb'
 fname=ARGV[0]
 index_match=ARGV[1].match(/^(\d+)?(\-)?(\d+)?$/)
 cluster_size=ARGV[2].to_i
+out_file = ARGV[3]
 
 fin = File.open(fname, "rb")
-fo = File.open("output.html", "w")
+fo = File.open(ARGV[3], "w")
 puts "Opening file #{fname}, and File size is #{fin.size}"
 
 if index_match[2]
@@ -32,7 +33,28 @@ puts "Listing #{index_end - index_begin+1} bytes from #{index_begin} to #{index_
 
 data = fin.read[index_begin..index_end]
 ctr=0
-fo.puts "<table>"
+output =<<STYLE
+<style type="text/css">
+
+body {
+background-color: #000;
+color: #fff;
+}
+
+table {
+border-spacing: 0px;
+}
+
+td {
+width: 100px;
+border: 1px solid #fff; 
+}
+
+</style>
+<table>
+STYLE
+
+fo.puts output
 
 while ctr <= data.size-1
 	puts ctr
@@ -40,8 +62,8 @@ while ctr <= data.size-1
 	tdline +=  display_bytes(data[ctr..ctr+cluster_size-1], "</td><td>")
 	tdline +="</td></tr>\n<tr><td>"
 	(0..cluster_size-1).each do |x|
-		unpacked = data[ctr+x..ctr+x+3].unpack('C')[0]
-		tdline+= unpacked.to_s + "</td><td>"
+#		unpacked = data[ctr+x..ctr+x+3].unpack('C')[0]
+#		tdline+= unpacked.to_s + "</td><td>"
 		#puts ("   "*x)+display_bytes(data[ctr+x..ctr+x+3])
 	end
 	tdline += "</td></tr>\n"

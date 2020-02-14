@@ -3,11 +3,11 @@
 require 'time'
 
 def display_bytes(str, delim)
-	ret = String.new
+	ret = Array.new
 	str.each_byte do  |byte|
-	ret += "%02X#{delim}" % byte
+	ret.push ("%02X#" % byte)
 	end
-return ret
+return ret.join(delim)
 end
 
 

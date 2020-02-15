@@ -1,0 +1,19 @@
+body {
+background-color: #000;
+color: #fff;
+font-family: sans-serif;
+}
+
+table {
+border-spacing: 0px;
+}
+
+td {
+width: 100px;
+border: 1px solid #fff; 
+}
+
+.intptd {
+text-align: right;
+}
+

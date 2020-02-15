@@ -34,23 +34,9 @@ puts "Listing #{index_end - index_begin+1} bytes from #{index_begin} to #{index_
 data = fin.read[index_begin..index_end]
 ctr=0
 output =<<STYLE
-<style type="text/css">
-
-body {
-background-color: #000;
-color: #fff;
-}
-
-table {
-border-spacing: 0px;
-}
-
-td {
-width: 100px;
-border: 1px solid #fff; 
-}
-
-</style>
+<head>
+<link rel="stylesheet" type="text/css" href="view.css">
+</head>
 <table>
 STYLE
 
@@ -58,14 +44,15 @@ fo.puts output
 
 while ctr <= data.size-1
 	puts ctr
-	tdline = "<tr><td>"
-	tdline +=  display_bytes(data[ctr..ctr+cluster_size-1], "</td><td>")
-	tdline +="</td></tr>\n<tr><td>"
+	tdline = "<tr class=\"binsrc\"><td class=\"binsrc\">"
+	tdline +=  display_bytes(data[ctr..ctr+cluster_size-1], "</td><td class=\"binsrc\">")
+	tdline +="</td></tr>\n<tr class=\"intptd\"><td class=\"intptd\">"
+	unpacked = []
 	(0..cluster_size-1).each do |x|
-#		unpacked = data[ctr+x..ctr+x+3].unpack('C')[0]
-#		tdline+= unpacked.to_s + "</td><td>"
-		#puts ("   "*x)+display_bytes(data[ctr+x..ctr+x+3])
+		break unless x+ctr < data.size 
+		unpacked.push data[ctr+x..ctr+x+3].unpack('C')[0]
 	end
+	tdline += unpacked.join("</td><td class=\"intptd\">")
 	tdline += "</td></tr>\n"
 	fo.puts tdline
 	ctr += cluster_size
@@ -73,17 +60,4 @@ end
 
 fo.puts "</table>"
 fo.close
-=begin
-(0..11).each do |offset|
-
-unpacked = line[offset..offset+3].unpack('l')[0]
-puts ("  |"*offset.to_i)+unpacked.to_s
-
-end
-=end
-
-#1. trace back to absolute ptr pointing in data so unpack is complete when line changes
-#2. more types
-#3. select a segment of lines
-
 fin.close

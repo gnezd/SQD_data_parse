@@ -44,7 +44,7 @@ fo.puts output
 
 while ctr <= data.size-1
 	puts ctr
-	tdline = "<tr class=\"binsrc\"><td class=\"binsrc\">"
+	tdline = "<tr class=\"binsrc\"><td class=\"addr\" rowspan=2><span class=\"addr-dec\">#{ctr}</span><br><span class=\"addr-hex\">#{"%02x" % ctr}</span></td><td class=\"binsrc\">"
 	tdline +=  display_bytes(data[ctr..ctr+cluster_size-1], "</td><td class=\"binsrc\">")
 	tdline +="</td></tr>\n<tr class=\"intptd\"><td class=\"intptd\">"
 	unpacked = []

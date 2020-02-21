@@ -11,3 +11,6 @@
 |Function2|TIC-|887|100-500|1:23, 2:217, 3, 527, 887: 1207|11139936|19514|138239|
 |Function3|DAD|3901|210-600|1: 390, 2, 259, 3901:172, 3900:172|9128340|85822|-|
 
+Size analysis calculations:
+[Here](https://docs.google.com/spreadsheets/d/1MsC3vxKqi8805vH02juFBxap4zO-_4S6p9Yg0vwdXMM/edit?usp=sharing)
+Comments pending

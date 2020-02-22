@@ -2,36 +2,49 @@
 
 require './lib.rb'
 
-def unpack_general(data, cluster_size)
-	result = []	
-	(0..cluster_size-1).each do |x|
-		break unless x < data.size 
-		result.push data[x..x+3].unpack('S')[0].to_s
-	end
-	return result
-end
 
-def unpack_idx(line)
-	result = Array.new
-	result[0] = line[0..3].unpack('L')[0] #pointer to begin of scan
-	
-	result[1] = line[4..5].unpack('s')[0] #num of spectral points in this scan
-	result[2] = line[12..15].unpack('f')[0] #retention time in miutes
-	#result[16] = line[16..17].unpack('s')[0].to_s #max value in the scan
-	return result
-
-end
 
 fname=ARGV[0]
-fname_ext=fname.split('.')[-1]
-cluster_size=ARGV[2].to_i
-out_file = ARGV[3]
+
+raise "No file name given" unless fname
+puts "Checking integrity of raw file..."
+raise "File doesn't exist" unless File.directory? fname
+
+func_dats = Dir.glob("_FUNC*.DAT", base: fname).sort!
+chrom_dats = Dir.glob("_CHRO*.DAT", base: fname)
+raise "No DAT files found!" if func_dats.empty?
+
+puts "Directory found. Checking if _FUNC*.DATs have .IDXs"
+idxs = Dir.glob("*.IDX", base: fname).sort!
+puts "Warning: Number of .IDX files (#{idxs.size}) doesn't match with that of function .DAT files (#{func_dats.size})!" unless idxs.size == func_dats.size
+func_dats.each {|funcdat| raise "#{funcdat} has no corresponding .IDX!" unless idxs.one? {|idx| funcdat[0..-4] == idx[0..-4]} }
+
+puts "All set. #{chrom_dats.size} chromatograms and #{func_dats.size} functions found."
+
+print "Input command: q to quit. F to start parsing functions."
+while command = STDIN.gets#command mode loop
+print "Input command:"
+case command
+
+when "q\n"
+	puts " Exit"
+	exit
+
+when "F\n"
+	puts "Entering function reading mode. Which function would you like to read?"
+	func_dats.each_index {|n| puts "#{n}) #{func_dats}"}
+end
+
+end
+
+=begin
 
 fin = File.open(fname+'.IDX', "rb")
 #fo = File.open(ARGV[3], "w")
 puts "Opening function #{fname}, and idx file size is #{fin.size}"
 
 
+scan_num=ARGV[1].to_i
 
 idx = fin.read
 fin.close
@@ -59,15 +72,13 @@ puts scan_begin.size
 
 fin = File.open(fname+".DAT", "rb")
 dat = fin.read
-scans = []
 
-(0..3).each do |i|
-	scans.push(dat[scan_begin[i]*6..(scan_begin[i]+scan_size[i])*6-1])
-end
 
-puts "For scan 0 it begins at #{scan_begin[0]} and spans #{scan_size[0]} 6X bytes"
-(0..(scans[0].size)/6-1).each do |i|
-	pt_str = scans[0][6*i..6*i+5]
+puts "Scan #{scan_num} begins at #{scan_begin[scan_num]} and spans #{scan_size[scan_num]} * 6 bytes"
+scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
+(0..(scan_ext.size)/6-1).each do |i|
+	pt_str = scan_ext[6*i..6*i+5]
 	#puts "#{i}:\t|" + display_bytes(pt_str,'|') + "|\t" + pt_str[4..5].unpack('L')[0].to_s
 	puts display_bytes(pt_str,' ') + "\t#{pt_str[0..1].unpack('S')[0]}\t#{pt_str[2].unpack('C')[0]}\t#{("\0"+pt_str[3..5]).unpack('L')[0]/256}"
 end
+=end

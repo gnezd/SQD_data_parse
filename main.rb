@@ -20,6 +20,8 @@ def unpack_idx(line)
 	result[5] = ""
 	result[12] = line[12..15].unpack('f')[0].to_s #retention time in miutes
 	result[13..15] = ["", "", ""]
+	result[16] = line[16..17].unpack('s')[0].to_s #max value in the scan
+	result[17] = ""
 	return result
 
 end

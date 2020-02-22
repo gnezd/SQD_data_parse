@@ -69,5 +69,5 @@ puts "For scan 0 it begins at #{scan_begin[0]} and spans #{scan_size[0]} 6X byte
 (0..(scans[0].size)/6-1).each do |i|
 	pt_str = scans[0][6*i..6*i+5]
 	#puts "#{i}:\t|" + display_bytes(pt_str,'|') + "|\t" + pt_str[4..5].unpack('L')[0].to_s
-	puts display_bytes(pt_str,' ') + "\t#{pt_str[0..1].unpack('S')[0]}\t#{pt_str[-2..-1].unpack('S')[0]}"
+	puts display_bytes(pt_str,' ') + "\t#{pt_str[0..1].unpack('S')[0]}\t#{pt_str[2].unpack('C')[0]}\t#{("\0"+pt_str[3..5]).unpack('L')[0]/256}"
 end

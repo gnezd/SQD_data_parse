@@ -43,8 +43,62 @@ while command == "F\n"
 		command = 0
 	elsif func_dats[func_num.to_i]
 		func_num=func_num.to_i
-		puts "Reading #{idxs[func_num]}"
-	end
+		fin = File.open(idxs[func_num], "rb")
+		idx = fin.read
+		fin.close
+		puts "Read in #{idxs[func_num]}, and file size #{idx.size} = #{idx.size/22} scan lines. Which line would you extract?"
+		scan_num = STDIN.gets.to_i
+		puts "Output to file? (empty for stdin)"
+		outpath = STDIN.gets.chomp
+		if outpath == ""
+			fo = STDOUT
+		else
+			fo = File.open(script_root+'/'+outpath, "w")
+		end 
+		
+		accumulates = Hash.new(0) #parameters that accumulate acros an idx file
+		scan_begin = []
+		scan_size = []
+		idx_mystery1 = []
+		idx_mystery2 = []
+		rt =[]
+
+		ctr = 0
+		while ctr < idx.size-1
+			unpacked = unpack_idx(idx[ctr..ctr+21])
+			accumulates["points_from_IDX"] += unpacked[1].to_i #num of 6 byte data points
+			scan_begin.push unpacked[0]
+			scan_size.push unpacked[1]
+			rt.push unpacked[2]
+			idx_mystery1.push idx[ctr+6..ctr+11]
+			idx_mystery2.push idx[ctr+16..ctr+21]
+			ctr += 22
+		end
+		
+		fin = File.open(func_dats[func_num], "rb")
+		dat = fin.read
+		fin.close
+		raise "6B data point number from .DAT (#{dat.size/6}) doesn't match that designated in IDX(#{accumulates["points_from_IDX"]}!)"	if dat.size/6 != accumulates["points_from_IDX"]
+		
+		puts "Scan #{scan_num} begins at #{scan_begin[scan_num]} and spans #{scan_size[scan_num]} * 6 bytes"
+		scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
+		
+		fo.puts "<Function #{func_num}, scan ##{scan_num}, time #{rt[scan_num]}>"
+		fo.puts display_bytes(idx_mystery1[scan_num], '-') + "\t" + display_bytes(idx_mystery2[scan_num], '-')
+		fo.puts "raw_mcr\traw_count*count_gain\tmcr_multiplier\tcount_gain"
+		(0..(scan_ext.size)/6-1).each do |i| #each spectral point
+			pt_str = scan_ext[6*i..6*i+5]
+			raw_count = pt_str[0..1].unpack('S')[0] #ion count
+			count_gain = 4**(pt_str[2].unpack('C')[0] % 16)
+			mcr_multiplier = 2**((pt_str[2].unpack('C')[0]/16).floor-7)
+			raw_mcr = ("\0"+pt_str[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
+			fo.puts "#{raw_mcr}\t#{raw_count*count_gain}\t#{mcr_multiplier}\t#{count_gain}"
+		end #each spectral point
+		if fo != STDOUT
+			puts "Written function #{func_num}, scan ##{scan_num} to file: #{fo.path}" 
+			fo.close
+		end
+	end #while command == "F"
 end
 
 puts "Input command (q to quit. F to start parsing functions.):"
@@ -53,46 +107,5 @@ end #while command input loop
 
 =begin
 
-fin = File.open(fname+'.IDX', "rb")
-#fo = File.open(ARGV[3], "w")
-puts "Opening function #{fname}, and idx file size is #{fin.size}"
 
-
-scan_num=ARGV[1].to_i
-
-idx = fin.read
-fin.close
-ctr=0
-
-
-accumulates = Hash.new(0)
-
-scan_begin = []
-scan_size = []
-rt =[]
-
-while ctr < idx.size-1
-	unpacked = unpack_idx(idx[ctr..ctr+22])
-	accumulates["points_from_IDX"] += unpacked[1].to_i
-	scan_begin.push unpacked[0]
-	scan_size.push unpacked[1]
-	rt.push unpacked[2]
-	ctr += 22
-end
-
-
-puts accumulates
-puts scan_begin.size
-
-fin = File.open(fname+".DAT", "rb")
-dat = fin.read
-
-
-puts "Scan #{scan_num} begins at #{scan_begin[scan_num]} and spans #{scan_size[scan_num]} * 6 bytes"
-scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
-(0..(scan_ext.size)/6-1).each do |i|
-	pt_str = scan_ext[6*i..6*i+5]
-	#puts "#{i}:\t|" + display_bytes(pt_str,'|') + "|\t" + pt_str[4..5].unpack('L')[0].to_s
-	puts display_bytes(pt_str,' ') + "\t#{pt_str[0..1].unpack('S')[0]}\t#{pt_str[2].unpack('C')[0]}\t#{("\0"+pt_str[3..5]).unpack('L')[0]/256}"
-end
 =end

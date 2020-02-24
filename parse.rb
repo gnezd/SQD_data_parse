@@ -8,34 +8,48 @@ fname=ARGV[0]
 
 raise "No file name given" unless fname
 puts "Checking integrity of raw file..."
-raise "File doesn't exist" unless File.directory? fname
+script_root = Dir.pwd
+raise "File doesn't exist" unless Dir.chdir fname
 
-func_dats = Dir.glob("_FUNC*.DAT", base: fname).sort!
-chrom_dats = Dir.glob("_CHRO*.DAT", base: fname)
+func_dats = Dir.glob("#{Dir.pwd}/_FUNC*.DAT").sort!
+chrom_dats = Dir.glob("#{Dir.pwd}/_CHRO*.DAT")
 raise "No DAT files found!" if func_dats.empty?
 
 puts "Directory found. Checking if _FUNC*.DATs have .IDXs"
-idxs = Dir.glob("*.IDX", base: fname).sort!
+idxs = Dir.glob("#{Dir.pwd}/*.IDX").sort!
 puts "Warning: Number of .IDX files (#{idxs.size}) doesn't match with that of function .DAT files (#{func_dats.size})!" unless idxs.size == func_dats.size
 func_dats.each {|funcdat| raise "#{funcdat} has no corresponding .IDX!" unless idxs.one? {|idx| funcdat[0..-4] == idx[0..-4]} }
 
 puts "All set. #{chrom_dats.size} chromatograms and #{func_dats.size} functions found."
 
-print "Input command: q to quit. F to start parsing functions."
-while command = STDIN.gets#command mode loop
-print "Input command:"
-case command
+puts "Input command (q to quit. F to start parsing functions.):"
+command = STDIN.gets#command mode loop
 
-when "q\n"
-	puts " Exit"
+
+while true 
+
+if command == "q\n"
+	puts "Exit"
 	exit
-
-when "F\n"
-	puts "Entering function reading mode. Which function would you like to read?"
-	func_dats.each_index {|n| puts "#{n}) #{func_dats}"}
 end
 
+while command == "F\n"
+	puts "Function reading mode. Which function would you like to read?"
+	func_dats.each_index {|n| puts "#{n}) #{File.basename(func_dats[n])}"}
+	puts "Enter number (q to exit):"
+	func_num = STDIN.gets
+	if func_num.chomp == "q"
+ 		puts "Back to main menu."
+		command = 0
+	elsif func_dats[func_num.to_i]
+		func_num=func_num.to_i
+		puts "Reading #{idxs[func_num]}"
+	end
 end
+
+puts "Input command (q to quit. F to start parsing functions.):"
+command = STDIN.gets#command mode loop
+end #while command input loop
 
 =begin
 

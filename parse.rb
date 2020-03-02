@@ -85,14 +85,14 @@ while command == "F\n"
 		
 		fo.puts "<Function #{func_num}, scan ##{scan_num}, time #{rt[scan_num]}>"
 		fo.puts display_bytes(idx_mystery1[scan_num], '-') + "\t" + display_bytes(idx_mystery2[scan_num], '-')
-		fo.puts "raw_mcr\traw_count*count_gain\tmcr_multiplier\tcount_gain"
+		fo.puts "raw_mcr\traw_count\tmcr_multiplier\tcount_gain"
 		(0..(scan_ext.size)/6-1).each do |i| #each spectral point
 			pt_str = scan_ext[6*i..6*i+5]
 			raw_count = pt_str[0..1].unpack('S')[0] #ion count
 			count_gain = 4**(pt_str[2].unpack('C')[0] % 16)
 			mcr_multiplier = 2**((pt_str[2].unpack('C')[0]/16).floor-7)
 			raw_mcr = ("\0"+pt_str[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
-			fo.puts "#{raw_mcr}\t#{raw_count*count_gain}\t#{mcr_multiplier}\t#{count_gain}"
+			fo.puts "#{raw_mcr}\t#{raw_count}\t#{mcr_multiplier}\t#{count_gain}"
 		end #each spectral point
 		if fo != STDOUT
 			puts "Written function #{func_num}, scan ##{scan_num} to file: #{fo.path}" 

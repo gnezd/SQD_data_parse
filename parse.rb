@@ -81,17 +81,18 @@ while command == "F\n"
 		raise "6B data point number from .DAT (#{dat.size/6}) doesn't match that designated in IDX(#{accumulates["points_from_IDX"]}!)"	if dat.size/6 != accumulates["points_from_IDX"]
 		
 		puts "Scan #{scan_num} begins at #{scan_begin[scan_num]} and spans #{scan_size[scan_num]} * 6 bytes"
-		scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
+		#scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
 		
 		fo.puts "<Function #{func_num}, scan ##{scan_num}, time #{rt[scan_num]}>"
 		fo.puts display_bytes(idx_mystery1[scan_num], '-') + "\t" + display_bytes(idx_mystery2[scan_num], '-')
 		fo.puts "raw_mcr\traw_count\tmcr_multiplier\tcount_gain"
-		(0..(scan_ext.size)/6-1).each do |i| #each spectral point
-			pt_str = scan_ext[6*i..6*i+5]
-			raw_count = pt_str[0..1].unpack('S')[0] #ion count
-			count_gain = 4**(pt_str[2].unpack('C')[0] % 16)
-			mcr_multiplier = 2**((pt_str[2].unpack('C')[0]/16).floor-7)
-			raw_mcr = ("\0"+pt_str[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
+		(0..scan_size[scan_num]-1).each do |i| #each spectral point
+			pt6b = dat[scan_begin[scan_num]+6*i..scan_begin[scan_num]+6*i+5] #this 6 byte data point
+			#raw_count = pt6b[0..1].unpack('S')[0] #ion count
+			raw_count = pt6b[0..1].unpack('s')[0] #ion count, signed?
+			count_gain = 4**(pt6b[2].unpack('C')[0] % 16)
+			mcr_multiplier = 2**((pt6b[2].unpack('C')[0]/16).floor-7)
+			raw_mcr = ("\0"+pt6b[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
 			fo.puts "#{raw_mcr}\t#{raw_count}\t#{mcr_multiplier}\t#{count_gain}"
 		end #each spectral point
 		if fo != STDOUT

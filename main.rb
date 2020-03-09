@@ -1,5 +1,5 @@
 #!/usr/bin/ruby
-
+#Usage: <this.rb> file_name index group_size output
 require './lib.rb'
 
 def unpack_general(data, cluster_size)
@@ -18,10 +18,16 @@ def unpack_idx(line)
 	
 	result[4] = line[4..5].unpack('s')[0].to_s #num of spectral points in this scan
 	result[5] = ""
+	result[6] = line[6..7].unpack('s')[0].to_s #00-18
+	result[7] = ""
+	result[8] = line[8..11].unpack('f')[0].to_s #Accumulative signal?
+	result[9..11] = ["", "", ""]
 	result[12] = line[12..15].unpack('f')[0].to_s #retention time in miutes
 	result[13..15] = ["", "", ""]
 	result[16] = line[16..17].unpack('s')[0].to_s #max value in the scan
 	result[17] = ""
+	result[18] = line[18..21].unpack('L')[0].to_s #??
+	result[19..21] = ["", "", ""]
 	return result
 
 end

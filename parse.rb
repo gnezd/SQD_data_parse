@@ -83,7 +83,7 @@ while command == "F\n"
 		puts "Scan #{scan_num} begins at #{scan_begin[scan_num]} and spans #{scan_size[scan_num]} * 6 bytes"
 		#scan_ext = dat[scan_begin[scan_num]..(scan_begin[scan_num]+scan_size[scan_num])*6-1]
 		
-		fo.puts "<Function #{func_num}, scan ##{scan_num}, time #{rt[scan_num]}>"
+		fo.puts "<Function #{func_num+1}, scan ##{scan_num}, time #{rt[scan_num]}>"
 		fo.puts display_bytes(idx_mystery1[scan_num], '-') + "\t" + display_bytes(idx_mystery2[scan_num], '-')
 		fo.puts "raw_mcr\traw_count\tmcr_multiplier\tcount_gain"
 		(0..scan_size[scan_num]-1).each do |i| #each spectral point

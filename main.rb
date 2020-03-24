@@ -79,14 +79,20 @@ accumulates = Hash.new(0)
 while ctr <= data.size-1
 	tdline = "<tr class=\"binsrc\"><td class=\"addr\" rowspan=2><span class=\"addr-dec\">#{ctr}</span><br><span class=\"addr-hex\">#{"%02x" % ctr}</span></td><td class=\"binsrc\">"
 	tdline +=  display_bytes(data[ctr..ctr+cluster_size-1], "</td><td class=\"binsrc\">")
-	tdline +="</td></tr>\n<tr class=\"intptd\"><td class=\"intptd\">"
+	tdline +="</td></tr>\n<tr class=\"intptd\"><td class=\"intptd_std\">"
 	if fname_ext == "IDX"
 		unpacked = unpack_idx(data[ctr..ctr+22])
 		accumulates["points_from_IDS"] += unpacked[4].to_i
 	else
 		unpacked = unpack_general(data[ctr..ctr+cluster_size+3], cluster_size)
 	end
-	tdline += unpacked.join("</td><td class=\"intptd\">")
+	tdline += unpacked[0..3].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[4..5].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[6..7].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[8..11].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[12..15].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[16..17].join("</td><td class=\"intptd\">") + "<td class=\"intptd_std\">"
+	tdline += unpacked[18..21].join("</td><td class=\"intptd\">")
 	tdline += "</td></tr>\n"
 	fo.puts tdline
 	ctr += cluster_size

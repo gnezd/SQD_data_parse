@@ -2,8 +2,6 @@
 
 require './lib.rb'
 
-
-
 fname=ARGV[0]
 
 raise "No file name given" unless fname
@@ -93,6 +91,7 @@ while command == "F\n"
 			count_gain = 4**(pt6b[2].unpack('C')[0] % 16)
 			mcr_multiplier = 2**((pt6b[2].unpack('C')[0]/16).floor-7)
 			raw_mcr = ("\0"+pt6b[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
+			#raw_mcr = (pt6b[4..5]).unpack('S')[0] #mcr = mass-charge ratio 2 byte
 			fo.puts "#{raw_mcr}\t#{raw_count}\t#{mcr_multiplier}\t#{count_gain}"
 		end #each spectral point
 		if fo != STDOUT

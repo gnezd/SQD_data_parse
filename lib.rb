@@ -2,6 +2,7 @@
 
 require 'time'
 require 'get_process_mem'
+require 'benchmark'
 
 def display_bytes(str, delim)
 	ret = Array.new
@@ -54,7 +55,7 @@ class Masslynx_scan
 		#process IDX
 		@idx_raw = idx_raw_22b
 		@scan_begin = @idx_raw[0..3].unpack('L')[0] #pointer to beginning of scan, in bytes
-		@size = @idx_raw[4..5].unpack('S')[0] # size of scan, in 6B
+		@size = @idx_raw[4..5].unpack('S')[0] # size of scan, in 6B unit
 		# 6..7 is still a mystery
 		@accumulate = @idx_raw[8..11].unpack('f')[0]
 		@retention_time = @idx_raw[12..15].unpack('f')[0]

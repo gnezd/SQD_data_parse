@@ -2,4 +2,6 @@
 
 ## Usage
 ### Binary viewer
-`main.rb <input_file> <bytes range> <bytes per line> <output file>`
+```
+require 'lib.rb' 
+```

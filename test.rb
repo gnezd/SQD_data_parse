@@ -1,6 +1,6 @@
 #OBJ: compare two versions of function parsing to accelerate
-load "./lib.rb"
-
+load "./lib2.rb"
+raise "Filename!" if ARGV[0] == nil
 raw_name = ARGV[0]
 
 puts "Constructing FUNC1"
@@ -11,11 +11,12 @@ end
 
 puts "Took #{time_per_func}"
 
-
+fo = File.new "output", "w"
+fo.puts $f1.retention_time
+fo.close
 #Matrix binning in spectral range!
 
 #scan_ext = [$f1.scans[100], $f1.scans[200], $f1.scans[300]] # to make dev test faster
-scan_ext = $f1.scans
 xrange = [100, 500, 0.5]
 =begin
 binned = Array.new(scan_ext.size) {Array.new} 
@@ -50,20 +51,17 @@ time_stupid_bin = Benchmark.measure do
 end
 puts "Stupid binning took: #{time_stupid_bin}"
 =end
-
+#=begin
 time_smart_bin = Benchmark.measure do
     width = ((xrange[1]-xrange[0])/xrange[2]).ceil
-    binned = Array.new(scan_ext.size+1) {Array.new(width) {0}}
+    binned = Array.new($f1.spect.size) {Array.new(width) {0}}
     binned[0]= [0] + (0..width).map {|x| xrange[0]+x*xrange[2]}
-    (1..scan_ext.size).each do |i|
-        binned[i][0] = scan_ext[i-1].retention_time
-        scan_ext[i-1].spectral_x.each_index do |spect|
-            x = ((scan_ext[i-1].spectral_x[spect]-xrange[0])/xrange[2]).ceil
-            #puts "#{scan_ext[i-1].spectral_x[spect]} -> #{x}"
+    (1..$f1.size-1).each do |i|
+        $f1.spect[i].each_index do |spect|
+            x = (($f1.spect[i][spect]-xrange[0])/xrange[2]).ceil
             break if x > width-1
             next if x <= 0
-            #raise "fuck, #{scan_ext[i-1].spectral_x[spect]} was thrown into x = 0" if x==0
-            binned[i][x] += scan_ext[i-1].count[spect]
+            binned[i][x] += $f1.counts[i][spect]
         end
     end
     martrix_o = File.open("matrix_smart.csv", "w")
@@ -73,7 +71,7 @@ time_smart_bin = Benchmark.measure do
     martrix_o.close
 end
 puts "Smart binning took: #{time_smart_bin}"
-
+#=end
 
 mem = GetProcessMem.new
 puts "Memory usage: #{mem.mb}"

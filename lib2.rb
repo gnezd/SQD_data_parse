@@ -12,8 +12,9 @@ def display_bytes(str, delim)
 return ret.join(delim)
 end
 
-def bin_x(range_begin, range_end, increment, ms_func)
+def bin_x(range, ms_func)
 
+	range_begin, range_end, increment = range
     width = ((range_end-range_begin)/increment).ceil
     binned = Array.new(ms_func.spect.size) {Array.new(width) {0}}
     spect_value = [0] + (0..width).map {|x| range_begin+x*increment}

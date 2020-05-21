@@ -17,7 +17,7 @@ def bin_x(range, ms_func)
 	range_begin, range_end, increment = range
     width = ((range_end-range_begin)/increment).ceil
     binned = Array.new(ms_func.spect.size) {Array.new(width) {0}}
-    spect_value = [0] + (0..width).map {|x| range_begin+x*increment}
+    spect_value = [''] + (0..width).map {|x| range_begin+x*increment}
     (1..ms_func.size-1).each do |i|
         ms_func.spect[i].each_index do |spect|
             x = ((ms_func.spect[i][spect]-range_begin)/increment).ceil

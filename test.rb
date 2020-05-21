@@ -16,27 +16,27 @@ puts "Took #{time_funcs}"
 #Matrix binning in spectral range!
 time_smart_bin = Benchmark.measure do
 
-    binned, spect_values = bin_x(100,500,0.5, $f1)
+    binned, spect_values = bin_x([200,1000,0.5], $f1)
     martrix_o = File.open("func1.csv", "w")
     martrix_o.puts spect_values.join ","
-    binned.each do |row|
-        martrix_o.puts row.join(", ")
+    binned.each_index do |row|
+        martrix_o.puts $f1.retention_time[row].to_s + ', ' +binned[row].join(", ")
     end
     martrix_o.close
     
-    binned, spect_values = bin_x(100,500,0.5, $f2)
+    binned, spect_values = bin_x([200,1000,0.5], $f2)
     martrix_o = File.open("func2.csv", "w")
     martrix_o.puts spect_values.join ","
-    binned.each do |row|
-        martrix_o.puts row.join(", ")
+    binned.each_index do |row|
+        martrix_o.puts $f2.retention_time[row].to_s + ', ' +binned[row].join(", ")
     end
     martrix_o.close
 
-    binned, spect_values = bin_x(210, 600, 1, $f3)
+    binned, spect_values = bin_x([210, 600, 1], $f3)
     martrix_o = File.open("func3.csv", "w")
     martrix_o.puts spect_values.join ","
-    binned.each do |row|
-        martrix_o.puts row.join(", ")
+    binned.each_index do |row|
+        martrix_o.puts $f3.retention_time[row].to_s + ', ' +binned[row].join(", ")
     end
     martrix_o.close
 end

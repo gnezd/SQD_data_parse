@@ -113,11 +113,11 @@ def plot(data, title, outpath) #Plot xy function with title with gnuplot
     fo.close
 
     gnuplot_headder = <<THE_END
-set terminal svg
+set terminal svg enhanced mouse
 set output '#{outpath}'
 set key outside bottom center
 
-plot 'xic.tsv' with lines t '#{title}'
+plot '#{title}.tsv' with lines t '#{title}'
 THE_END
 
     temp_gnuplot = File.new("temp.gplot", "w")

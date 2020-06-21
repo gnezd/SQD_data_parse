@@ -1,2 +1,5 @@
 *.swp
 *~
+*.tsv
+*.csv
+.DS_Store

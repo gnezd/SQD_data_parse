@@ -1,2 +1,8 @@
 *.swp
 *~
+*.tsv
+*.csv
+.DS_Store
+*.svg
+*.gplot
+*.out

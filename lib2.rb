@@ -83,21 +83,31 @@ end
 def chromatogram_extract(func, x_0, x_1) #Extract chromatogram in given spectral range (inclusive)
     result = Array.new(func.size) {[0.0, 0.0]}
     (0..func.size-1).each do |scan| #each scan
-        result[scan][0] = func.retention_time[scan]
+		result[scan][0] = func.retention_time[scan]
+		spectral_width = 0 #for normalizing UV abs
         (0..func.spect[scan].size-1).each do |spect| #each spectral point
             next if func.spect[scan][spect] < x_0
-            break if func.spect[scan][spect] > x_1
+			break if func.spect[scan][spect] > x_1
+			spectral_width += 1
             result[scan][1] += func.counts[scan][spect]
-        end
-    end
+		end
+		if func.func_num == 3
+			#puts "UV, normalizing"
+			result[scan][1] = result[scan][1].to_f / spectral_width 
+		end
+	end
+	
     return result
 end
 
 def spectrum_accum(func, t_0, t_1) #Sum up mass spectra over given retention time range (inclusive)
-    sum = Hash.new {0}
+	sum = Hash.new {0}
+	#chrom_width = 0 #for UV normalization
+	#DANGER of NOT binning and normalizing!!!!! (03 Jul 2020)
     (0..func.size-1).each do |scan|
         next if func.retention_time[scan] < t_0
-        break if func.retention_time[scan] > t_1
+		break if func.retention_time[scan] > t_1
+		#chrom_width += 1
         (0..func.spect[scan].size-1).each do |sp|
             sum[func.spect[scan][sp]] += func.counts[scan][sp]
         end

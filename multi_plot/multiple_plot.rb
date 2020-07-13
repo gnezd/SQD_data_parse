@@ -17,8 +17,8 @@ def multi_plot(chroms, titles, outpath)
     table = table.transpose
 
     #create data csv for post-process
-    csv_name = "#{outpath}(#{titles.size}).csv"
-    fo = File.new(csv_name, "w")
+#    csv_name = "#{outpath}"
+    fo = File.new(outpath+".csv", "w")
     csv_out = CSV.new(fo)
     table.each do |row|
         csv_out << row
@@ -31,9 +31,9 @@ set terminal svg
 THE_END
 
 annotations = <<THE_END
-MAX=GPVAL_Y_MAX
-MIN=GPVAL_Y_MIN
-set yrange [MIN-(MAX-MIN)*0.05:MAX+(MAX-MIN)*0.05]
+#MAX=GPVAL_Y_MAX
+#MIN=GPVAL_Y_MIN
+#set yrange [MIN-(MAX-MIN)*0.05:MAX+(MAX-MIN)*0.05]
 set xlabel 'Retention time (min)' offset 0, 0.5
 set xtics nomirror scale 0.5, 0.25
 set mxtics 10
@@ -47,7 +47,7 @@ set output '#{outpath}'
 THE_END
 
     #plot_line compilation
-    plot_line = "plot '#{csv_name}'"
+    plot_line = "plot '#{outpath}.csv'"
     raise if (table[0].size % 2) != 0
     i = 0
     while i < table[0].size
@@ -59,7 +59,7 @@ THE_END
 
     temp_gnuplot = File.new("temp.gplot", "w")
     temp_gnuplot.puts gnuplot_headder
-    temp_gnuplot.puts plot_line
+ #   temp_gnuplot.puts plot_line
     temp_gnuplot.puts annotations
     temp_gnuplot.puts plot_line
     temp_gnuplot.close
@@ -247,12 +247,26 @@ CSV.read("list.csv").each do |row|
     plot_list.push([row[0], row[1], row[2..-1]])
 end
 
+chroms = Array.new
+c_titles = Array.new
+spects = Array.new
+s_titles = Array.new
+
 plot_list.each do |entry|
-    chroms, c_titles, spects, s_titles = report(entry[0], entry[1], entry[2])
-    multi_plot(chroms, c_titles, "out/#{entry[1]}-chroms.svg") if !(chroms == nil || chroms == [])
-    if !(spects == nil || spects == []) #If there are spectra to plot
-        spects.each_index do |i|
-            spectrum_plot(spects[i], s_titles[i], "out/#{entry[1]}-#{s_titles[i]}.svg")
-        end
+    new_chroms, new_c_titles, new_spects, new_s_titles = report(entry[0], entry[1], entry[2])
+    chroms += new_chroms
+    c_titles += new_c_titles
+    spects += new_spects
+    s_titles += new_s_titles
+end
+
+if !(chroms == nil || chroms == []) #If there are chromatograms to plot
+    multi_plot(chroms, c_titles, "out/#{chroms.size}chroms.svg") if !(chroms == nil || chroms == [])
+end
+
+if !(spects == nil || spects == []) #If there are spectra to plot
+    spects.each_index do |i| #spectras are plotted separately
+        puts "s_titles are #{s_titles}"
+        spectrum_plot(spects[i], s_titles[i], "out/#{s_titles[i]}.svg")
     end
 end

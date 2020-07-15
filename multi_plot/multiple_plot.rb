@@ -2,7 +2,7 @@
 require '../lib2.rb'
 require 'csv'
 
-def multi_plot(chroms, titles, outpath)
+def multi_plot(chroms, titles, outdir, svg_name)
     #chroms and titles should be arrays
     #or define a data class chrom? Would actually be reusable?
 
@@ -17,8 +17,8 @@ def multi_plot(chroms, titles, outpath)
     table = table.transpose
 
     #create data csv for post-process
-#    csv_name = "#{outpath}"
-    fo = File.new(outpath+".csv", "w")
+    csv_name = "#{outdir}/#{svg_name}.csv"
+    fo = File.new(csv_name, "w")
     csv_out = CSV.new(fo)
     table.each do |row|
         csv_out << row
@@ -31,23 +31,21 @@ set terminal svg
 THE_END
 
 annotations = <<THE_END
-#MAX=GPVAL_Y_MAX
-#MIN=GPVAL_Y_MIN
-#set yrange [MIN-(MAX-MIN)*0.05:MAX+(MAX-MIN)*0.05]
 set xlabel 'Retention time (min)' offset 0, 0.5
 set xtics nomirror scale 0.5, 0.25
 set mxtics 10
-set y2tics scale 0.5
+set yrange [0:1.05]
 set ytics nomirror scale 0.5
 set ylabel 'Normalized ion counts' offset 2.5,0
+set y2tics scale 0.5
 set y2label 'Absorption (10^{-6} a.u.)' offset -2.5,0
 set terminal svg enhanced mouse size 1200 600 font "Calibri, 16"
 set margins 5,9,2.5,0.5
-set output '#{outpath}'
+set output '#{outdir}/#{svg_name}.svg'
 THE_END
 
     #plot_line compilation
-    plot_line = "plot '#{outpath}.csv'"
+    plot_line = "plot '#{csv_name}'"
     raise if (table[0].size % 2) != 0
     i = 0
     while i < table[0].size
@@ -68,7 +66,7 @@ THE_END
     #result = `rm temp.gplot`
 end
 
-def spectrum_plot(spect, title, outpath)
+def spectrum_plot(spect, title, outdir, svg_name)
     #chroms and titles should be arrays
     #or define a data class chrom? Would actually be reusable?
 
@@ -81,7 +79,7 @@ def spectrum_plot(spect, title, outpath)
     table = table.transpose
 
     #create data csv for post-process
-    csv_name = "out/#{title}.csv"
+    csv_name = "#{outdir}/#{svg_name}-#{title}.csv"
     fo = File.new(csv_name, "w")
     csv_out = CSV.new(fo)
     table.each do |row|
@@ -113,7 +111,7 @@ set ytics nomirror scale 0.5
 set ylabel '#{ylabel}' offset 3,0
 set terminal svg enhanced mouse size 1200 600 font "Calibri, 16"
 set margins 9,3,2.5,0.5
-set output '#{outpath}'
+set output '#{outdir}/#{svg_name}.svg'
 THE_END
 
     #plot_line compilation
@@ -241,6 +239,11 @@ def report(raw, nickname, pick)
     return chroms, c_titles, spects, s_titles
 end
 
+
+outdir = "Plot-#{Time.now.strftime("%d%b%Y-%k%M%S")}"
+Dir.mkdir outdir
+result = `cp list.csv #{outdir}/`
+
 plot_list = Array.new
 CSV.read("list.csv").each do |row|
     next if row[0] == 'name'
@@ -260,13 +263,15 @@ plot_list.each do |entry|
     s_titles += new_s_titles
 end
 
+
+
 if !(chroms == nil || chroms == []) #If there are chromatograms to plot
-    multi_plot(chroms, c_titles, "out/#{chroms.size}chroms.svg") if !(chroms == nil || chroms == [])
+    multi_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
 end
 
 if !(spects == nil || spects == []) #If there are spectra to plot
     spects.each_index do |i| #spectras are plotted separately
-        puts "s_titles are #{s_titles}"
-        spectrum_plot(spects[i], s_titles[i], "out/#{s_titles[i]}.svg")
+        #puts "s_titles are #{s_titles}"
+        spectrum_plot(spects[i], s_titles[i], outdir, "#{s_titles[i]}")
     end
 end

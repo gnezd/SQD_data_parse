@@ -11,8 +11,8 @@ def multi_plot(chroms, titles, outdir, svg_name)
     raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
     max_chrom_length = (chroms.max {|chrom| chrom[0].size})[0].size
     chroms.each_index do |i|
-        table.push([titles[i]] + chroms[i][0]+ ([''] * (max_chrom_length - chroms[i][0].size)))
-        table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size)))
+        table.push([titles[i]] + chroms[i][0]+ ([''] * (max_chrom_length - chroms[i][0].size))) #Title - x values - blank filling to the max chrom length in this plot
+        table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
     end
     table = table.transpose
 

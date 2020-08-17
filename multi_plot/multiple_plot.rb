@@ -255,7 +255,7 @@ result = `cp list.csv #{outdir}/`
 
 plot_list = Array.new
 CSV.read("list.csv").each do |row|
-    next if row[0] == 'name'
+    next if row[0] == 'path'
     plot_list.push([row[0], row[1], row[2..-1]])
 end
 

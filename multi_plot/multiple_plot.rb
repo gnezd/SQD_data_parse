@@ -32,15 +32,24 @@ THE_END
 
 annotations = <<THE_END
 set xlabel 'Retention time (min)' offset 0, 0.5
-set xtics nomirror scale 0.5, 0.25
+set xtics nomirror out scale 0.5, 0.25
 set mxtics 10
-set yrange [0:1.05]
+set yrange [-0.005:1.05]
 set ytics nomirror scale 0.5
 set ylabel 'Normalized ion counts' offset 2.5,0
 set y2tics scale 0.5
 set y2label 'Absorption (10^{-6} a.u.)' offset -2.5,0
 set terminal svg enhanced mouse size 1200 600 font "Calibri, 16"
 set margins 5,9,2.5,0.5
+set linetype 1 lc rgb "black" lw 2
+set linetype 2 lc rgb "dark-red" lw 2
+set linetype 3 lc rgb "olive" lw 2
+set linetype 4 lc rgb "navy" lw 2
+set linetype 5 lc rgb "red" lw 2
+set linetype 6 lc rgb "dark-turquoise" lw 2
+set linetype 7 lc rgb "dark-blue" lw 2
+set linetype 8 lc rgb "dark-violet" lw 2
+set linetype cycle 8
 set output '#{outdir}/#{svg_name}.svg'
 THE_END
 
@@ -246,7 +255,7 @@ result = `cp list.csv #{outdir}/`
 
 plot_list = Array.new
 CSV.read("list.csv").each do |row|
-    next if row[0] == 'name'
+    next if row[0] == 'path'
     plot_list.push([row[0], row[1], row[2..-1]])
 end
 

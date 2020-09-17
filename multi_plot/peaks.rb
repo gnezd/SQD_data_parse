@@ -1,8 +1,10 @@
 require '../lib2.rb'
 require 'csv'
-require 'pty'
-require 'tk'
+#require 'pty'
+#require 'tk'
+
 def datatable(chroms, titles)
+    #Create 2d array of chromatograms, fill blanks and trnapose for CSV output
     table = Array.new
     raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
     max_chrom_length = (chroms.max {|chroma, chromb| chroma[0].size <=> chromb[0].size})[0].size
@@ -14,11 +16,13 @@ def datatable(chroms, titles)
     return table
 end
 def normalize(chrom)
-    max = chrom.max{|pta, ptb| pta[1].abs <=> ptb[1].abs}[1].abs
+    #Divide all by max
+    max = chrom.max_by{|pta| pt[1].abs}[1].abs
     norm = chrom.map {|pt| [pt[0], pt[1]/max]}
     return norm, max
 end
 def deriv(chrom)
+    #Simple derivative
     d = Array.new
     chrom.each_index do |i|
         next if i == 0
@@ -29,7 +33,8 @@ def deriv(chrom)
     return d
 end
 
-def ma(chrom, radius) #+- radius points
+def ma(chrom, radius)
+    #+- radius points moving average
     a = Array.new
     chrom.each_index do |i|
         y = 0.0

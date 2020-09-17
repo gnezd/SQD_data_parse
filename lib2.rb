@@ -116,7 +116,7 @@ def spectrum_accum(func, t_0, t_1) #Sum up mass spectra over given retention tim
 end
 
 def plot(data, title, outpath) #Plot xy function with title with gnuplot
-    fo = File.open("#{title}.tsv", "w")
+    fo = File.open("#{title}.tsv", "w") #generate tsv
     data.each do |pt|
         fo.puts pt[0].to_s + "\t" + pt[1].to_s
     end

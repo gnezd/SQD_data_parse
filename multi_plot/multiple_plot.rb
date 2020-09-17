@@ -1,5 +1,5 @@
 #prototype multiple plot
-require '../lib2.rb'
+require '../lib.rb'
 require 'csv'
 
 def multi_plot(chroms, titles, outdir, svg_name)

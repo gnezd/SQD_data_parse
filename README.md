@@ -1,8 +1,8 @@
 # Waters LCMS SQD raw file format reverse engineering
 
 ## Requirements
-### Ruby
-### Gnuplot
+1. Ruby
+2. Gnuplot
 
 ## Usage
 ### For Rubyists

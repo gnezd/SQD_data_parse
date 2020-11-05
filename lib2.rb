@@ -54,6 +54,30 @@ class Masslynx_Function
 
 end
 
+class Chromatogram
+	attr_accessor :name, :meta
+	def initialize
+		@data = Array.new {[[],[]]}
+	end
+
+	def [](i)
+		return @data[i]
+	end
+	def append(pt)
+		raise if pt.class != Array || pt.size != 2
+		@data.push pt
+	end
+
+end
+
+class Peak
+	attr_accessor :begin, :end, :height, :area, :name, :note
+	def initialize(beg, endd)
+		 self.begin = beg
+		 self.end = endd
+	end
+end
+
 def display_bytes(str, delim) #Bytewise show string in hex with deliminator
 	ret = Array.new
 	str.each_byte do  |byte|

@@ -11,8 +11,8 @@ def multi_plot(chroms, titles, outdir, svg_name)
     raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
     max_chrom_length = (chroms.max {|chrom| chrom[0].size})[0].size
     chroms.each_index do |i|
-        table.push([titles[i]] + chroms[i][0]+ ([''] * (max_chrom_length - chroms[i][0].size)))
-        table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size)))
+        table.push([titles[i]] + chroms[i][0]+ ([''] * (max_chrom_length - chroms[i][0].size))) #Title - x values - blank filling to the max chrom length in this plot
+        table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
     end
     table = table.transpose
 
@@ -27,7 +27,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
     gnuplot_headder = <<THE_END
 set datafile separator ','
-set terminal svg
+set terminal svg enhanced mouse jsdir '../js/'
 THE_END
 
 annotations = <<THE_END
@@ -39,7 +39,7 @@ set ytics nomirror scale 0.5
 set ylabel 'Normalized ion counts' offset 2.5,0
 set y2tics scale 0.5
 set y2label 'Absorption (10^{-6} a.u.)' offset -2.5,0
-set terminal svg enhanced mouse size 1200 600 font "Calibri, 16"
+set terminal svg enhanced mouse jsdir '../js/' size 1200 600 font "Calibri, 16"
 set margins 5,9,2.5,0.5
 set linetype 1 lc rgb "black" lw 2
 set linetype 2 lc rgb "dark-red" lw 2
@@ -118,7 +118,7 @@ set xtics nomirror scale 0.5, 0.25
 set mxtics 10
 set ytics nomirror scale 0.5
 set ylabel '#{ylabel}' offset 3,0
-set terminal svg enhanced mouse size 1200 600 font "Calibri, 16"
+set terminal svg enhanced mouse jsdir '../js/' size 1200 600 font "Calibri, 16"
 set margins 9,3,2.5,0.5
 set output '#{outdir}/#{svg_name}.svg'
 THE_END

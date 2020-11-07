@@ -1,10 +1,139 @@
 #!/usr/bin/ruby
+#Main library for Waters SQD data parsing
+#Requirement: gnuplot
+#Content: Class definition of Masslynx_Function
+#And some orphan functions: display_bytes(), bin_x(), chromatogram_extract(), spectrum() and plot()
 
-require 'time'
-require 'get_process_mem'
-require 'benchmark'
+#require 'time'
+#require 'get_process_mem'
+#require 'benchmark'
 
-def display_bytes(str, delim)
+class Masslynx_Function
+	
+	attr_reader :fname, :func_num, :size, :spect, :counts, :retention_time, :total_trace, :scan_size, :scan_index
+
+	def initialize(fname, func_num)
+	
+		@fname = fname
+		@func_num = func_num
+		idx_in = File.open(fname + "/_FUNC00#{@func_num}.IDX", "rb")
+		idx_raw = idx_in.read.freeze
+		idx_in.close
+		raise "#{fname}/_FUNC00#{@func_num}.IDX corrupt" if idx_raw.size % 22 != 0
+		@size = idx_raw.size / 22 #number of scan time points
+		
+		@spect = Array.new(@size) {Array.new() {0.0}}
+		@counts = Array.new(@size) {Array.new(0) {0}}
+		@retention_time = Array.new(@size) {0.0}
+		@total_trace = Array.new(@size) {0.0}
+		@scan_size = Array.new(@size) {0} 
+		@scan_index = Array.new(@size) {0} #Position of beginning of time scan in .DAT
+		scan_num = 0
+		while scan_num < @size
+			scan_begin, scan_size_r, accumulate, rt = idx_raw[22*scan_num, 22].unpack("L S x x f f") #info from IDX
+			@scan_index[scan_num] = scan_begin
+			@scan_size[scan_num] = scan_size_r
+			@total_trace[scan_num] = accumulate
+			@retention_time[scan_num] = rt
+			scan_num += 1
+		end
+	end
+	
+	def raw_loaded?
+		return false if (@spect == Array.new(@size) {Array.new() {0.0}}) & (@counts == Array.new(@size) {Array.new(0) {0}})
+		return true
+	end
+
+	def inspect
+		return {'fname' => @fname, 'func_num' => @func_num, 'size' => @size, 'raw_loaded?' => raw_loaded?}
+	end
+	def extract(x_0, x_1) #Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+		unless raw_loaded? 
+			#Extract data from .DAT
+			raw_in = File.open(@fname + "/_FUNC00#{@func_num}.DAT", "rb")
+			dat_raw = raw_in.read.freeze
+			raw_in.close
+
+			scan_num = 0 #iterate timepoint scan
+			while scan_num < @size
+					#puts "scan_num: #{scan_num}, index: #{@scan_index[scan_num]}"
+					(0..@scan_size[scan_num]-1).each do |spect| #iterate spectral value
+					raw_count, byte3, raw_mcr, raw_mcr256 = dat_raw[@scan_index[scan_num] + spect*6, 6].unpack("s C C S")
+					#Real magic of data conversion. See note.
+					@spect[scan_num][spect] = ((2**((byte3/16).floor-7))*(raw_mcr256*256+raw_mcr)-46384).to_f/131034
+					@counts[scan_num][spect] = raw_count * (4**(byte3 % 16)).to_int
+				end
+				scan_num += 1
+			end
+		end
+		#After that start extracting the spectral range
+		result = Array.new(@size) {[0.0, 0]}
+		spectral_width = 0 #for normalizing UV abs
+		(0..@size-1).each do |scan| #each scan
+			result[scan][0] = @retention_time[scan]
+			spectral_width_t = 0 #Spectral width at this scan: varies because of zero-cutoff
+			(0..@spect[scan].size-1).each do |spect| #each spectral point
+				next if @spect[scan][spect] < x_0
+				break if @spect[scan][spect] > x_1
+				spectral_width_t += 1
+				result[scan][1] += @counts[scan][spect]
+			end
+			spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
+=begin
+			if @func_num == 3 #UV trace, normalize
+				result[scan][1] = result[scan][1].to_f / spectral_width 
+			end
+=end
+		end
+		
+		return result, spectral_width
+	end
+end
+
+def chromatogram_extract(func, x_0, x_1) #Extract chromatogram in given spectral range (inclusive)
+    result = Array.new(func.size) {[0.0, 0.0]}
+    (0..func.size-1).each do |scan| #each scan
+		result[scan][0] = func.retention_time[scan]
+		spectral_width = 0 #for normalizing UV abs
+        (0..func.spect[scan].size-1).each do |spect| #each spectral point
+            next if func.spect[scan][spect] < x_0
+			break if func.spect[scan][spect] > x_1
+			spectral_width += 1
+            result[scan][1] += func.counts[scan][spect]
+		end
+		if func.func_num == 3
+			#puts "UV, normalizing"
+			result[scan][1] = result[scan][1].to_f / spectral_width 
+		end
+	end
+	
+    return result
+end
+class Chromatogram
+	attr_accessor :name, :meta
+	def initialize
+		@data = Array.new {[[],[]]}
+	end
+
+	def [](i)
+		return @data[i]
+	end
+	def append(pt)
+		raise if pt.class != Array || pt.size != 2
+		@data.push pt
+	end
+
+end
+
+class Peak
+	attr_accessor :begin, :end, :height, :area, :name, :note
+	def initialize(beg, endd)
+		 self.begin = beg
+		 self.end = endd
+	end
+end
+
+def display_bytes(str, delim) #Bytewise show string in hex with deliminator
 	ret = Array.new
 	str.each_byte do  |byte|
 	ret.push ("%02X" % byte)
@@ -12,72 +141,60 @@ def display_bytes(str, delim)
 return ret.join(delim)
 end
 
+def bin_x(range, ms_func) #Bin the spectral domain of a Masslynx_Function io designated range and resolution
 
-class Masslynx_Function
-	
-	attr_reader :fname, :func_num, :size, :scans
-
-	def initialize(fname, func_num)
-	
-		@fname = fname
-		@func_num = func_num
-		raw_in = File.open(fname + "/_FUNC00#{func_num}.DAT", "rb")
-		dat_raw = raw_in.read
-		raw_in.close
-		idx_in = File.open(fname + "/_FUNC00#{func_num}.IDX", "rb")
-		idx_raw = idx_in.read
-		idx_in.close
-		raise "#{fname}/_FUNC00#{func_num}.IDX corrupt" if idx_raw.size % 22 != 0
-		@size = idx_raw.size / 22 #number of scan time points
-		
-		@scans = Array.new
-		raw_size_chk = 0 #from IDX cross check
-		scan_num = 0
-		while scan_num < @size
-			@scans.push(Masslynx_scan.new(idx_raw[22*scan_num..22*scan_num+21], dat_raw)) #build index
-			raw_size_chk += @scans.last.size #accumulate number of total ms data points for cross check
-			scan_num += 1
-		end
-		raise "Corupt #{fname}/_FUNC00#{func_num}.DAT file. Accumulative size should be 6 * #{raw_size_chk} = #{raw_size_chk*6} bytes but actually was #{dat_raw.size}" if dat_raw.size != 6* raw_size_chk
-
+	range_begin, range_end, increment = range
+    width = ((range_end-range_begin)/increment).ceil
+    binned = Array.new(ms_func.spect.size) {Array.new(width) {0}}
+    spect_value = [''] + (0..width).map {|x| range_begin+x*increment}
+    (1..ms_func.size-1).each do |i|
+        ms_func.spect[i].each_index do |spect|
+            x = ((ms_func.spect[i][spect]-range_begin)/increment).ceil
+            break if x > width-1
+            next if x <= 0
+            binned[i][x] += ms_func.counts[i][spect]
+        end
 	end
-
-	def inspect
-		puts ""
-	end
-
+	
+	return binned, spect_value
 end
 
-class Masslynx_scan
-	attr_reader :idx_raw, :scan_begin, :size, :retention_time, :accumulate, :spectral_x, :count
 
-	def initialize(idx_raw_22b, dat_raw)
-		#process IDX
-		@idx_raw = idx_raw_22b
-		@scan_begin = @idx_raw[0..3].unpack('L')[0] #pointer to beginning of scan, in bytes
-		@size = @idx_raw[4..5].unpack('S')[0] # size of scan, in 6B unit
-		# 6..7 is still a mystery
-		@accumulate = @idx_raw[8..11].unpack('f')[0]
-		@retention_time = @idx_raw[12..15].unpack('f')[0]
+def spectrum_accum(func, t_0, t_1) #Sum up mass spectra over given retention time range (inclusive)
+	sum = Hash.new {0}
+	#chrom_width = 0 #for UV normalization
+	#DANGER of NOT binning and normalizing!!!!! (03 Jul 2020)
+    (0..func.size-1).each do |scan|
+        next if func.retention_time[scan] < t_0
+		break if func.retention_time[scan] > t_1
+		#chrom_width += 1
+        (0..func.spect[scan].size-1).each do |sp|
+            sum[func.spect[scan][sp]] += func.counts[scan][sp]
+        end
+    end
+    return sum.sort.to_a
+end
 
-		#process DAT
-		@spectral_x = Array.new
-		@count = Array.new
+def plot(data, title, outpath) #Plot xy function with title with gnuplot
+    fo = File.open("#{title}.tsv", "w") #generate tsv
+    data.each do |pt|
+        fo.puts pt[0].to_s + "\t" + pt[1].to_s
+    end
+    fo.close
 
-		dat_raw = dat_raw[@scan_begin..@scan_begin + @size*6] #chop in scan chunk
-		
-		counter = 0
-		while counter < dat_raw.size - 1 #6B data point loop
-			#prep and unpacks
-			raw6b = dat_raw[counter..counter+5]
-			raw_count = raw6b[0..1].unpack('s')[0]
-			count_gain = 4**(raw6b[2].unpack('C')[0] % 16)
-			mcr_multiplier = 2**((raw6b[2].unpack('C')[0]/16).floor-7)
-			raw_mcr = ("\0"+raw6b[3..5]).unpack('L')[0]/256 #mcr = mass-charge ratio
-			#real calc
-			@count.push(raw_count * count_gain)
-			@spectral_x.push((raw_mcr * mcr_multiplier - 46384).to_f / 131034) #131034 as slope and 46384 as intercept from emperical fitting. See note.md
-			counter += 6
-		end # end 6B data point loop
-	end
+    gnuplot_headder = <<THE_END
+set terminal svg enhanced mouse
+set output '#{outpath}'
+set key outside bottom center
+
+plot '#{title}.tsv' with lines t '#{title}'
+THE_END
+
+    temp_gnuplot = File.new("temp.gplot", "w")
+    temp_gnuplot.puts gnuplot_headder
+    temp_gnuplot.close
+
+    result = `gnuplot temp.gplot`
+    result = `rm temp.gplot`
+
 end

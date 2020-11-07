@@ -17,7 +17,7 @@ def datatable(chroms, titles)
 end
 def normalize(chrom)
     #Divide all by max
-    max = chrom.max_by{|pta| pt[1].abs}[1].abs
+    max = chrom.max_by{|pta| pta[1].abs}[1].abs
     norm = chrom.map {|pt| [pt[0], pt[1]/max]}
     return norm, max
 end
@@ -60,19 +60,19 @@ def max_neighborhood(chrom, exclude, r, &crit)
     return pt, upd_exclude
 end
 #extract a chromatogram and plot interactively
-raw = "../raw/Bode - ycd2310on-1_20200604.raw"
-#func = Masslynx_Function.new(raw, 2)
-#tic = chromatogram_extract(func, 200, 500)
-#fo = File.new("peak_test_chrom.csv", "w")
-#csv_out = CSV.new(fo)
-#tic.each do |row|
-#    csv_out << row
-#end
+raw = "../raw/2331/Bode - ycd2331-1-1_20200708.raw"
+func = Masslynx_Function.new(raw, 2)
+tic = chromatogram_extract(func, 302, 304)
+fo = File.new("peak_test_chrom.csv", "w")
+csv_out = CSV.new(fo)
+tic.each do |row|
+    csv_out << row
+end
 
 #read raw chrom in
 chrom = Array.new
 titled = 0 #no title in the csv
-csv_in = CSV.read("chrom0.csv")
+csv_in = CSV.read("peak_test_chrom.csv")
 chrom_name = (csvin.shift)[0] if titled == 1
 csv_in.each do |pt|
     chrom.push pt.map {|x| x.to_f}
@@ -84,15 +84,16 @@ derivma, derivma_i = normalize(deriv(ma3))
 deriv2, int = normalize(deriv(derivma))
 
 
-titles = ['orig',  "deriv_#{"%.2f" % Math.log10(deriv_i)}_n", 'deriv2_n']
+titles = ['orig', 'ma3', "deriv_#{"%.2f" % Math.log10(deriv_i)}_n", 'deriv2_n']
 chroms = Array.new
 chroms.push chrom.transpose
-#chroms.push ma3.transpose
+chroms.push ma3.transpose
 chroms.push deriv.transpose
 #chroms.push derivma.transpose
 chroms.push deriv2.transpose
 
 peaks = Array.new
+peaks.push([4.0, 1]) #random
 #puts "size of neg 2 deriv2: #{neg5_deriv2}"
 annotate_out = File.new("peaks.csv", "w")
 csv_ann = CSV.new(annotate_out)
@@ -108,9 +109,9 @@ table.each do |row|
     csv_out << row
 end
 fo.close
-#set terminal tkcanvas ruby interactive
+
 gnuplot_head = <<THE_END
-set terminal svg enhanced mouse size 1000 600
+set terminal svg mouse enhanced jsdir './js/' size 1000 600
 set output 'blah.svg'
 set datafile separator ','
 set xlabel 'rt'
@@ -130,15 +131,9 @@ titles.each_index do |chrom_num|
     plot_line += " using #{chrom_num*2+1}:#{chrom_num*2+2} with lines t '#{titles[chrom_num].gsub('_','\_')}'"
     plot_line += " axis x1y2" if titles[chrom_num] =~ /\_n$/
 end
-plot_line += ", 'peaks.csv' using 1:2:('x') with labels axis x1y2"
+plot_line += ", 'peaks.csv' using 1:2:('x') t 'peaks' with labels axis x1y2"
 temp_gnuplot.puts plot_line
 temp_gnuplot.close
-#result = `gnuplot pktemp.gp > canvas_out.rb`
 result = `gnuplot pktemp.gp`
 puts result
-result = `open blah.svg`
-#root = TkRoot.new {title 'Ruby/Tk'}
-#c = TkCanvas.new(root, 'width'=> 800, 'height'=>600) {pack {}}
-#load('canvas_out.rb')
-#gnuplot(c)
-#Tk.mainloop
+#result = `open blah.svg`

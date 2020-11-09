@@ -4,18 +4,15 @@
 #Content: Class definition of Masslynx_Function
 #And some orphan functions: display_bytes(), bin_x(), chromatogram_extract(), spectrum() and plot()
 
-#require 'time'
-#require 'get_process_mem'
-#require 'benchmark'
-
 class Masslynx_Function
 	
-	attr_reader :fname, :func_num, :size, :spect, :counts, :retention_time, :total_trace, :scan_size, :scan_index
+	attr_reader :fname, :func_num, :size, :spect, :counts, :scan_index, :scan_size, :total_trace, :retention_time
 
 	def initialize(fname, func_num)
 	
 		@fname = fname
 		@func_num = func_num
+
 		idx_in = File.open(fname + "/_FUNC00#{@func_num}.IDX", "rb")
 		idx_raw = idx_in.read.freeze
 		idx_in.close
@@ -24,13 +21,15 @@ class Masslynx_Function
 		
 		@spect = Array.new(@size) {Array.new() {0.0}}
 		@counts = Array.new(@size) {Array.new(0) {0}}
-		@retention_time = Array.new(@size) {0.0}
-		@total_trace = Array.new(@size) {0.0}
-		@scan_size = Array.new(@size) {0} 
 		@scan_index = Array.new(@size) {0} #Position of beginning of time scan in .DAT
+		@scan_size = Array.new(@size) {0} #Length of scan data 
+		@total_trace = Array.new(@size) {0.0} #Total count trace
+		@retention_time = Array.new(@size) {0.0} #Retention time of each scan
+
 		scan_num = 0
 		while scan_num < @size
-			scan_begin, scan_size_r, accumulate, rt = idx_raw[22*scan_num, 22].unpack("L S x x f f") #info from IDX
+			#info from IDX
+			scan_begin, scan_size_r, accumulate, rt = idx_raw[22*scan_num, 22].unpack("L S x x f f")
 			@scan_index[scan_num] = scan_begin
 			@scan_size[scan_num] = scan_size_r
 			@total_trace[scan_num] = accumulate
@@ -91,6 +90,7 @@ class Masslynx_Function
 end
 
 def chromatogram_extract(func, x_0, x_1) #Extract chromatogram in given spectral range (inclusive)
+	raise "#{self.class} - #{__method__}:  method deprecated!"
     result = Array.new(func.size) {[0.0, 0.0]}
     (0..func.size-1).each do |scan| #each scan
 		result[scan][0] = func.retention_time[scan]
@@ -121,6 +121,25 @@ class Chromatogram
 	def append(pt)
 		raise if pt.class != Array || pt.size != 2
 		@data.push pt
+	end
+
+	def normalize normalize to max
+	end
+
+	def deriv #derivative
+	end
+
+	def ma #moving average
+	end
+
+	def sd_rank(range, rank) #find the SD of less deviating (rank, 0~1) points in range
+	end
+
+	def write_to(target) #write to 2d array or file
+		#if file exist, append
+		#if not, create
+		#if 2d array, transpose and append
+		#consult peaks.rb datatable
 	end
 
 end

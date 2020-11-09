@@ -1,4 +1,4 @@
-require '../lib2.rb'
+require '../lib.rb'
 require 'csv'
 #require 'pty'
 #require 'tk'

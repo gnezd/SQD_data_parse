@@ -70,7 +70,20 @@ class Masslynx_Function
 	def extract_chrom(x_0, x_1) #Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
 
 		load_raw unless raw_loaded? 
-		chrom = Array.new(@size) {[0.0, 0]}
+		#construct chromatogram name
+		case @func_num
+		when 0
+			name = "ESI+ XIC"
+			units = ["mins", "counts"]
+		when 1
+			name = "ESI- XIC"
+			units = ["mins", "counts"]
+		when 2
+			name = "UV band chromatogramms"
+			units = ["mins", ""]
+		end
+		#construct units
+		chrom = Chromatogram.new(@size, name, units)
 		spectral_width = 0 #for normalizing UV abs
 		
 		(0..@size-1).each do |scan| #each scan
@@ -85,7 +98,7 @@ class Masslynx_Function
 			spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
 		end
 		
-		return result, spectral_width
+		return chrom, spectral_width
 	end	
 
 	def extract_spect(t_0, t_1) #Extract spectrum in given retention tim=e range
@@ -147,16 +160,16 @@ end
 class Chromatogram
 	attr_accessor :name, :units, :rt_range, :signal_range, :desc
 	
-	def initialize(name, units, desc)
-		@data = Array.new {[[],[]]}
-		@name = String.new
-		@unit = ["", ""]
-		@desc = ""
-
-		@name = name
+	def initialize(size, name, units, desc = nil)
+		@data = Array.new(size) {[0.0, 0]}
+		@name = name.to_s
 		@units = units
+		raise "units format should be an arr of two strings" unless @units.class == Array && @units.size == 2 && @units.all? {|elements| elements.class == String}
 		@desc = desc
 
+	end
+
+	def inspect
 	end
 
 	def update_info
@@ -173,7 +186,7 @@ class Chromatogram
 	end
 
 	def normalize #normalize to max
-		result = Chromatogram.new("#{@name}-normalized", @units, "#{@name}-int:#{@signal_range[1]}")
+		result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{}"], "#{@name}-int:#{@signal_range[1]}")
 		@data.each_index do |i|
 			result.push([@data[i][0], @data[i][1]/@signal_range[1]])
 		end

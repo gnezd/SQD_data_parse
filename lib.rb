@@ -43,87 +43,140 @@ class Masslynx_Function
 		return true
 	end
 
+	def load_raw
+		#Extract data from .DAT
+		raw_in = File.open(@fname + "/_FUNC00#{@func_num}.DAT", "rb")
+		dat_raw = raw_in.read.freeze
+		raw_in.close
+
+		scan_num = 0 #iterate timepoint scan
+		while scan_num < @size
+			#puts "scan_num: #{scan_num}, index: #{@scan_index[scan_num]}"
+			(0..@scan_size[scan_num]-1).each do |spect| #iterate spectral value
+				raw_count, byte3, raw_mcr, raw_mcr256 = dat_raw[@scan_index[scan_num] + spect*6, 6].unpack("s C C S")
+				#Real magic of data conversion. See note.
+				@spect[scan_num][spect] = ((2**((byte3/16).floor-7))*(raw_mcr256*256+raw_mcr)-46384).to_f/131034
+				@counts[scan_num][spect] = raw_count * (4**(byte3 % 16)).to_int
+			end
+			scan_num += 1
+		end
+
+	end
+
 	def inspect
 		return {'fname' => @fname, 'func_num' => @func_num, 'size' => @size, 'raw_loaded?' => raw_loaded?}
 	end
-	def extract(x_0, x_1) #Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
-		unless raw_loaded? 
-			#Extract data from .DAT
-			raw_in = File.open(@fname + "/_FUNC00#{@func_num}.DAT", "rb")
-			dat_raw = raw_in.read.freeze
-			raw_in.close
 
-			scan_num = 0 #iterate timepoint scan
-			while scan_num < @size
-					#puts "scan_num: #{scan_num}, index: #{@scan_index[scan_num]}"
-					(0..@scan_size[scan_num]-1).each do |spect| #iterate spectral value
-					raw_count, byte3, raw_mcr, raw_mcr256 = dat_raw[@scan_index[scan_num] + spect*6, 6].unpack("s C C S")
-					#Real magic of data conversion. See note.
-					@spect[scan_num][spect] = ((2**((byte3/16).floor-7))*(raw_mcr256*256+raw_mcr)-46384).to_f/131034
-					@counts[scan_num][spect] = raw_count * (4**(byte3 % 16)).to_int
-				end
-				scan_num += 1
-			end
-		end
-		#After that start extracting the spectral range
-		result = Array.new(@size) {[0.0, 0]}
+	def extract_chrom(x_0, x_1) #Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+
+		load_raw unless raw_loaded? 
+		chrom = Array.new(@size) {[0.0, 0]}
 		spectral_width = 0 #for normalizing UV abs
+		
 		(0..@size-1).each do |scan| #each scan
-			result[scan][0] = @retention_time[scan]
+			chrom[scan][0] = @retention_time[scan]
 			spectral_width_t = 0 #Spectral width at this scan: varies because of zero-cutoff
 			(0..@spect[scan].size-1).each do |spect| #each spectral point
 				next if @spect[scan][spect] < x_0
 				break if @spect[scan][spect] > x_1
 				spectral_width_t += 1
-				result[scan][1] += @counts[scan][spect]
+				chrom[scan][1] += @counts[scan][spect]
 			end
 			spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
-=begin
-			if @func_num == 3 #UV trace, normalize
-				result[scan][1] = result[scan][1].to_f / spectral_width 
-			end
-=end
 		end
 		
 		return result, spectral_width
+	end	
+
+	def extract_spect(t_0, t_1) #Extract spectrum in given retention tim=e range
+		#DANGER of NOT binning!!!!! (10 Nov 2020)
+		load_raw unless raw_loaded? 
+		sum = Hash.new {0}
+		chrom_width = 0 #for UV normalization
+		(0..@size-1).each do |scan|
+			next if @retention_time[scan] < t_0
+			break if @retention_time[scan] > t_1
+			chrom_width += 1
+			(0..@spect[scan].size-1).each do |sp|
+				sum[@spect[scan][sp]] += @counts[scan][sp]
+			end
+		end
+		return sum.sort.to_a, chrom_width
 	end
+
+end
+
+def spectrum_accum(func, t_0, t_1) #Sum up mass spectra over given retention time range (inclusive)
+	raise "#{self.class} - #{__method__}:  method deprecated!"
+	sum = Hash.new {0}
+	#chrom_width = 0 #for UV normalization
+	#DANGER of NOT binning and normalizing!!!!! (03 Jul 2020)
+    (0..func.size-1).each do |scan|
+        next if func.retention_time[scan] < t_0
+		break if func.retention_time[scan] > t_1
+		#chrom_width += 1
+        (0..func.spect[scan].size-1).each do |sp|
+            sum[func.spect[scan][sp]] += func.counts[scan][sp]
+        end
+    end
+    return sum.sort.to_a
 end
 
 def chromatogram_extract(func, x_0, x_1) #Extract chromatogram in given spectral range (inclusive)
 	raise "#{self.class} - #{__method__}:  method deprecated!"
     result = Array.new(func.size) {[0.0, 0.0]}
     (0..func.size-1).each do |scan| #each scan
-		result[scan][0] = func.retention_time[scan]
+		chrom[scan][0] = func.retention_time[scan]
 		spectral_width = 0 #for normalizing UV abs
         (0..func.spect[scan].size-1).each do |spect| #each spectral point
             next if func.spect[scan][spect] < x_0
 			break if func.spect[scan][spect] > x_1
 			spectral_width += 1
-            result[scan][1] += func.counts[scan][spect]
+            chrom[scan][1] += func.counts[scan][spect]
 		end
 		if func.func_num == 3
 			#puts "UV, normalizing"
-			result[scan][1] = result[scan][1].to_f / spectral_width 
+			chrom[scan][1] = chrom[scan][1].to_f / spectral_width 
 		end
 	end
 	
     return result
 end
+
+
 class Chromatogram
-	attr_accessor :name, :meta
-	def initialize
+	attr_accessor :name, :units, :rt_range, :signal_range, :desc
+	
+	def initialize(name, units, desc)
 		@data = Array.new {[[],[]]}
+		@name = String.new
+		@unit = ["", ""]
+		@desc = ""
+
+		@name = name
+		@units = units
+		@desc = desc
+
+	end
+
+	def update_info
+		@rt_range = @data.minmax_by {|pt| pt[0]}
+		@signal_range = @data.minmax_by {|pt| pt[1]}
 	end
 
 	def [](i)
 		return @data[i]
 	end
-	def append(pt)
+	def push(pt)
 		raise if pt.class != Array || pt.size != 2
 		@data.push pt
 	end
 
-	def normalize normalize to max
+	def normalize #normalize to max
+		result = Chromatogram.new("#{@name}-normalized", @units, "#{@name}-int:#{@signal_range[1]}")
+		@data.each_index do |i|
+			result.push([@data[i][0], @data[i][1]/@signal_range[1]])
+		end
 	end
 
 	def deriv #derivative
@@ -179,20 +232,6 @@ def bin_x(range, ms_func) #Bin the spectral domain of a Masslynx_Function io des
 end
 
 
-def spectrum_accum(func, t_0, t_1) #Sum up mass spectra over given retention time range (inclusive)
-	sum = Hash.new {0}
-	#chrom_width = 0 #for UV normalization
-	#DANGER of NOT binning and normalizing!!!!! (03 Jul 2020)
-    (0..func.size-1).each do |scan|
-        next if func.retention_time[scan] < t_0
-		break if func.retention_time[scan] > t_1
-		#chrom_width += 1
-        (0..func.spect[scan].size-1).each do |sp|
-            sum[func.spect[scan][sp]] += func.counts[scan][sp]
-        end
-    end
-    return sum.sort.to_a
-end
 
 def plot(data, title, outpath) #Plot xy function with title with gnuplot
     fo = File.open("#{title}.tsv", "w") #generate tsv

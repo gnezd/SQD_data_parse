@@ -71,18 +71,20 @@ class Masslynx_Function
 
 		load_raw unless raw_loaded? 
 		#construct chromatogram name
+		puts @func_num
 		case @func_num
-		when 0
-			name = "ESI+ XIC"
-			units = ["mins", "counts"]
 		when 1
-			name = "ESI- XIC"
+			name = "ESI+ XIC #{x_0}~#{x_1} Da"
 			units = ["mins", "counts"]
 		when 2
-			name = "UV band chromatogramms"
-			units = ["mins", ""]
+			name = "ESI- XIC #{x_0}~#{x_1} Da"
+			units = ["mins", "counts"]
+		when 3
+			name = "UV band chromatogramms #{x_0}~#{x_1} nm"
+			units = ["mins", "abs * spectral_width"]
 		end
 		#construct units
+		puts "units feeding: #{units}" #debug
 		chrom = Chromatogram.new(@size, name, units)
 		spectral_width = 0 #for normalizing UV abs
 		
@@ -98,7 +100,8 @@ class Masslynx_Function
 			spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
 		end
 		
-		return chrom, spectral_width
+		chrom.desc['spectral_width'] = spectral_width
+		return chrom
 	end	
 
 	def extract_spect(t_0, t_1) #Extract spectrum in given retention tim=e range
@@ -164,12 +167,12 @@ class Chromatogram
 		@data = Array.new(size) {[0.0, 0]}
 		@name = name.to_s
 		@units = units
-		raise "units format should be an arr of two strings" unless @units.class == Array && @units.size == 2 && @units.all? {|elements| elements.class == String}
-		@desc = desc
-
+		raise "units format should be an arr of two strings, but is fed #{units}" unless @units.class == Array && @units.size == 2 && @units.all? {|elements| elements.class == String}
+		@desc = desc ? desc : Hash.new
 	end
 
 	def inspect
+		return {'name' => @name, 'size' => @size, 'rt_range' => @rt_range, 'signal_range' => @signal_range, 'desc' => @desc}
 	end
 
 	def update_info

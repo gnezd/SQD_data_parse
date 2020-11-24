@@ -4,7 +4,7 @@
 # Content: Class definition of Masslynx_Function
 # And some orphan functions: display_bytes(), bin_x(), chromatogram_extract(), spectrum() and plot()
 
-class Masslynx_Function
+class MasslynxFunction
   attr_reader :fname, :func_num, :size, :spect, :counts, :scan_index, :scan_size, :total_trace, :retention_time
 
   def initialize(fname, func_num)
@@ -103,62 +103,29 @@ class Masslynx_Function
     return chrom
   end
 
-  def extract_spect(t_0, t_1) # Extract spectrum in given retention tim=e range
+  def extract_spect(t_0, t_1) # Extract spectrum in given retention time range
     # DANGER of NOT binning!!!!! (10 Nov 2020)
+    # Decides not to bin, but normalize towards chrom_width
     load_raw unless raw_loaded?
     sum = Hash.new { 0 }
     chrom_width = 0 # for UV normalization
     (0..@size - 1).each do |scan|
       next if @retention_time[scan] < t_0
       break if @retention_time[scan] > t_1
-
+      #puts "extracting #{scan}" #debug
       chrom_width += 1
       (0..@spect[scan].size - 1).each do |sp|
         sum[@spect[scan][sp]] += @counts[scan][sp]
       end
     end
-    return sum.sort.to_a, chrom_width
-  end
-end
-
-def spectrum_accum(func, t_0, t_1) # Sum up mass spectra over given retention time range (inclusive)
-  raise "#{self.class} - #{__method__}:  method deprecated!"
-  sum = Hash.new { 0 }
-  # chrom_width = 0 #for UV normalization
-  # DANGER of NOT binning and normalizing!!!!! (03 Jul 2020)
-  (0..func.size - 1).each do |scan|
-    next if func.retention_time[scan] < t_0
-    break if func.retention_time[scan] > t_1
-
-    # chrom_width += 1
-    (0..func.spect[scan].size - 1).each do |sp|
-      sum[func.spect[scan][sp]] += func.counts[scan][sp]
-    end
-  end
-  return sum.sort.to_a
-end
-
-def chromatogram_extract(func, x_0, x_1) # Extract chromatogram in given spectral range (inclusive)
-  raise "#{self.class} - #{__method__}:  method deprecated!"
-  result = Array.new(func.size) { [0.0, 0.0] }
-  (0..func.size - 1).each do |scan| # each scan
-    chrom[scan][0] = func.retention_time[scan]
-    spectral_width = 0 # for normalizing UV abs
-    (0..func.spect[scan].size - 1).each do |spect| # each spectral point
-      next if func.spect[scan][spect] < x_0
-      break if func.spect[scan][spect] > x_1
-
-      spectral_width += 1
-      chrom[scan][1] += func.counts[scan][spect]
-    end
-    if func.func_num == 3
-      # puts "UV, normalizing"
-      chrom[scan][1] = chrom[scan][1].to_f / spectral_width
-    end
+    normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
+    puts "Spectral normalizer is #{normalizer}"
+    result = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]}
+    return result
   end
 
-  return result
 end
+
 
 class Chromatogram
   attr_accessor :name, :units, :rt_range, :signal_range, :desc

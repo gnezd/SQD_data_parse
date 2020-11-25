@@ -121,20 +121,21 @@ class MasslynxFunction
     normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
     puts "Spectral normalizer is #{normalizer}"
     result = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]}
-    return result
+    result
   end
 
 end
 
-
 class Chromatogram
-  attr_accessor :name, :units, :rt_range, :signal_range, :desc
 
+  attr_accessor :name, :units, :rt_range, :signal_range, :desc
   def initialize(size, name, units, desc = nil)
+    raise "units format should be an arr of two strings, but is fed #{units}" unless units.is_a?(Array) && units.size == 2 && units.all? { |elements| elements.is_a?(String)}
+    rasie "Size doesn't make sense" unless size.is_a?(Integer) && size >= 0
+
     @data = Array.new(size) { [0.0, 0] }
     @name = name.to_s
     @units = units
-    raise "units format should be an arr of two strings, but is fed #{units}" unless @units.class == Array && @units.size == 2 && @units.all? { |elements| elements.class == String }
 
     @desc = desc ? desc : Hash.new
   end
@@ -144,12 +145,13 @@ class Chromatogram
   end
 
   def update_info
-    @rt_range = @data.minmax_by { |pt| pt[0] }
-    @signal_range = @data.minmax_by { |pt| pt[1] }
+    @rt_range = @data.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
+    @signal_range = @data.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
   end
 
   def [](i)
-    return @data[i]
+    # This is problematic. Should inherit better the behavior of an array
+    @data[i]
   end
 
   def push(pt)
@@ -158,20 +160,65 @@ class Chromatogram
     @data.push pt
   end
 
-  def normalize # normalize to max
-    result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{}"], "#{@name}-int:#{@signal_range[1]}")
+  def normalize
+    # normalize to max
+    result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{@units[1]}"], "#{@name}-int:#{@signal_range[1]}")
     @data.each_index do |i|
-      result.push([@data[i][0], @data[i][1] / @signal_range[1]])
+      result.push([@data[i][0], @data[i][1].to_f / @signal_range[1]])
     end
+    result
   end
 
-  def deriv # derivative
+  def deriv
+    # Simple derivative
+    result = Chromatogram.new(@data.size-1, "#{@name}-derivative", [@units[0], "d(#{@units[1]})/dt"])
+    result.each_index do |i|
+      result[i] = [(@data[i][0] + @data[i+1][0]).to_f / 2, (@data[i+1][1]-@data[i][1]).to_f / (@data[i+1][0]-@data[i][0])]
+    end
+    result
   end
 
-  def ma # moving average
+  def ma(radius)
+    # +- radius points moving average
+    # Issue: Radius defined on no of points but not real time units
+    raise "Radius should be integer but was given #{radius}" unless radius.is_a?(Integer)
+    raise "Radius larger than half the length of chromatogram" if 2*radius >= @size
+
+    result = Chromatogram.new(@data.size-2*radius, "#{@name}-#{radius}ma", @units)
+    result.each_index do |i|
+      # Note that the index i of the moving average chromatogram aligns with i + radius in originaal chromatogram
+      x = @data[i + radius][0]
+      y = 0.0
+      (i .. i + 2 * radius).each do |origin_i|
+        # Second loop to run through the neighborhood in origin
+        # Would multiplication with a diagonal stripe matrix be faster than nested loop? No idea just yet.
+        y += @data[origin_i][1]
+      end
+      y = y / (2 * radius + 1) # Normalization
+      result[i] = [x, y]
+    end
+    result
   end
 
-  def sd_rank(range, rank) # find the SD of less deviating (rank, 0~1) points in range
+  def sd_rank(range, rank)
+    update_info
+    # Find the SD of less deviating (rank, 0~1) points in range
+    raise "Retention time selection #{range} out of chromatogram range #{@rt_range}!" if range[0] < @rt_range[0] || range[1] > @rt_range[1]
+
+    raise "Rank is supposed to be a number between 0 ~ 1 but #{rank} was given" unless 0 <= rank && rank <= 1
+
+    # First cut out sub chromatogram
+    index_begin = @data.find_index { |pt| pt[0] >= range[0] }
+    index_end = @data.find_index { |pt| pt[0] > range[1] } - 1 #Bug: Will be doing nil - 1 if index_end hits bottom of array
+    cut = @data[index_begin..index_end] # Note that this returns an array for now, not Chromatogram
+    # Then find average
+    avg = cut.map{|pt| pt[1]}.reduce(:+).to_f / cut.size
+    # Construct deviation array, sort, pick points, calculate sd
+    dev = cut.map{|pt| [pt[0], avg - pt[1]]}
+    dev.sort! {|pta, ptb| ptb[1]**2 <=> pta[1]**2}
+    cut = dev[0..dev.size*rank.to_i] # cut out the top ranking close to avg. Not the reuse of cut and avg
+    avg = cut.map{|pt| pt[1]}.reduce(:+).to_f / cut.size
+    (cut.map{ |pt| (pt[1] - avg)**2 }.reduce(:+).to_f / cut.size)**0.5
   end
 
   def write_to(target) # write to 2d array or file
@@ -181,6 +228,11 @@ class Chromatogram
     # consult peaks.rb datatable
   end
 end
+
+# WHERE DO I PUT THE datatable(chroms, titles) ??
+# It's own class? or??
+
+# pack up the plotting
 
 class Peak
   attr_accessor :begin, :end, :height, :area, :name, :note

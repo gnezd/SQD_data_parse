@@ -1,5 +1,5 @@
 #prototype multiple plot
-require '../lib2.rb'
+require '../lib.rb'
 require 'csv'
 
 def multi_plot(chroms, titles, outdir, svg_name)
@@ -213,10 +213,10 @@ def report(raw, nickname, pick)
     query_list[0..3].each_index do |i|
         next if query_list[i] == [[],[]] #Decide if we need to open this ESI+/- or UV file. Saves time.
         puts "Opening raw file #{raw} function #{i}, nicknamed #{nickname}"
-        func = Masslynx_Function.new(raw, i)
+        func = MasslynxFunction.new(raw, i)
 
         query_list[i][0].each do |range| #Prepare extracted chromatogrames
-            chrom = chromatogram_extract(func, range[0], range[1]).transpose
+            chrom = extract_chrom   (func, range[0], range[1]).transpose
             y_f = chrom[1].map{|s| s.to_f}
             max_y = y_f.max
             chrom[1] = y_f.map {|y| y/max_y} if i < 3

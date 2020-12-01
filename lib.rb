@@ -69,7 +69,7 @@ class MasslynxFunction
   def extract_chrom(x_0, x_1) # Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
     load_raw unless raw_loaded?
     # construct chromatogram name
-    puts @func_num
+    #puts @func_num
     case @func_num
     when 1
       name = "ESI+ XIC #{x_0}~#{x_1} Da"
@@ -90,6 +90,7 @@ class MasslynxFunction
       chrom[scan][0] = @retention_time[scan]
       spectral_width_t = 0 # Spectral width at this scan: varies because of zero-cutoff
       (0..@spect[scan].size - 1).each do |spect| # each spectral point
+        #The real spectrum cut happens here
         next if @spect[scan][spect] < x_0
         break if @spect[scan][spect] > x_1
 
@@ -158,6 +159,10 @@ class Chromatogram
     raise if pt.class != Array || pt.size != 2
 
     @data.push pt
+  end
+
+  def []=(i)
+    @data[i]
   end
 
   def normalize

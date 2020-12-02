@@ -28,7 +28,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   gnuplot_headder = <<~THE_END
     set datafile separator ','
-    set terminal svg enhanced mouse jsdir '../js/'
+    set terminal svg enhanced mouse standalone
   THE_END
 
   annotations = <<~THE_END
@@ -39,8 +39,8 @@ def multi_plot(chroms, titles, outdir, svg_name)
     set ytics nomirror scale 0.5
     set ylabel 'Normalized ion counts' offset 2.5,0
     set y2tics scale 0.5
-    set y2label 'Absorption (10^{-6} a.u.)' offset -2.5,0
-    set terminal svg enhanced mouse jsdir '../js/' size 1200 600 font "Calibri, 16"
+    set y2label 'Absorption (10^{-6} a.u.)' offset -  2.5,0
+    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
     set margins 5,9,2.5,0.5
     set linetype 1 lc rgb "black" lw 2
     set linetype 2 lc rgb "dark-red" lw 2
@@ -120,7 +120,7 @@ def spectrum_plot(spect, title, outdir, svg_name)
     set mxtics 10
     set ytics nomirror scale 0.5
     set ylabel '#{ylabel}' offset 3,0
-    set terminal svg enhanced mouse jsdir '../js/' size 1200 600 font "Calibri, 16"
+    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
     set margins 9,3,2.5,0.5
     set output '#{outdir}/#{svg_name}.svg'
   THE_END
@@ -160,6 +160,7 @@ def report(raw, nickname, pick)
     next if query == nil
     # If some query. magic regex lazy 1-liner, assignment also works as a nil check :p
     if qmatch = query.match(/^(\D+)?([\d\.]+)\s?(?:\-)?\s?([\d\.]+)?\s?(nm|\+|\-|min)$/)
+      puts qmatch[1..4].join '|'
       tolerance = 1.0 # Default spectral tolerance for spectra pick
       chrome_spect = 0 # Default: 0 for chromatogram, 1 for spectrum
       case qmatch[4] # which type of query?
@@ -223,10 +224,10 @@ def report(raw, nickname, pick)
     func = MasslynxFunction.new(raw, i)
 
     query_list[i][0].each do |range| # Prepare extracted chromatogrames
-      chrom = extract_chrom(func, range[0], range[1]).transpose
+      chrom = func.extract_chrom(range[0], range[1]).transpose
       y_f = chrom[1].map { |s| s.to_f }
       max_y = y_f.max
-      chrom[1] = y_f.map { |y| y / max_y } if i < 3
+      chrom[1] = y_f.map { |y| y / max_y } if i < 3 # MS traces are normalized
       chroms.push chrom
       title = "#{nickname}: #{range[0]} - #{range[1]}"
       raise "wtf why can i == 0" if i == 0
@@ -238,7 +239,8 @@ def report(raw, nickname, pick)
     end
 
     query_list[i][1].each do |range| # Prepare time domain slice spectrum
-      spect = spectrum_accum(func, range[0], range[1]).transpose
+      spect = func.extract_spect(range[0], range[1]).transpose
+      puts spect[1].size
       y_f = spect[1].map { |s| s.to_f }
       # Normalization necessary?
       # max_y = y_f.max

@@ -129,15 +129,15 @@ end
 
 class Chromatogram
 
-  attr_accessor :name, :units, :rt_range, :signal_range, :desc
+  attr_accessor :name, :units, :rt_range, :signal_range, :desc, :size
   def initialize(size, name, units, desc = nil)
     raise "units format should be an arr of two strings, but is fed #{units}" unless units.is_a?(Array) && units.size == 2 && units.all? { |elements| elements.is_a?(String)}
     rasie "Size doesn't make sense" unless size.is_a?(Integer) && size >= 0
 
+    @size = size
     @data = Array.new(size) { [0.0, 0] }
     @name = name.to_s
     @units = units
-
     @desc = desc ? desc : Hash.new
   end
 
@@ -161,8 +161,18 @@ class Chromatogram
     @data.push pt
   end
 
-  def []=(i)
-    @data[i]
+  def []=(i, input)
+    @data[i] = input
+  end
+
+  def to_a
+    @data[0..@size-1]
+  end
+
+  def transpose
+    rt = (0..@size-1).map {|x| @data[x][0]}
+    y = (0..@size-1).map {|x| @data[x][1]}
+    [rt, y]
   end
 
   def normalize

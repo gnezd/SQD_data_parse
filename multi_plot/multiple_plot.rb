@@ -224,11 +224,10 @@ def report(raw, nickname, pick)
     func = MasslynxFunction.new(raw, i)
 
     query_list[i][0].each do |range| # Prepare extracted chromatogrames
-      chrom = func.extract_chrom(range[0], range[1]).transpose
-      y_f = chrom[1].map { |s| s.to_f }
-      max_y = y_f.max
-      chrom[1] = y_f.map { |y| y / max_y } if i < 3 # MS traces are normalized
-      chroms.push chrom
+      chrom = func.extract_chrom(range[0], range[1])
+      chrom.update_info
+      max_y = chrom.signal_range[1]
+      chroms.push chrom.normalize.transpose
       title = "#{nickname}: #{range[0]} - #{range[1]}"
       raise "wtf why can i == 0" if i == 0
 

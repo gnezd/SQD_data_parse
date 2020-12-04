@@ -179,7 +179,7 @@ class Chromatogram
     # normalize to max
     result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{@units[1]}"], "#{@name}-int:#{@signal_range[1]}")
     @data.each_index do |i|
-      result.push([@data[i][0], @data[i][1].to_f / @signal_range[1]])
+      result[i] = [@data[i][0], @data[i][1].to_f / @signal_range[1]]
     end
     result
   end

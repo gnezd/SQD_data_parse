@@ -32,3 +32,6 @@ multi_plot([chrom1.normalize.transpose, chrom2.normalize.transpose], ['chrom1', 
 
 puts "--- Testing sd_rank ---"
 puts chrom1.sd_rank([3, 4], 0.5)/chrom1.signal_range[1]
+
+#test ma
+#rewrite multi-plot

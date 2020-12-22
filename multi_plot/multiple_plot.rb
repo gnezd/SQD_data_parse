@@ -227,7 +227,12 @@ def report(raw, nickname, pick)
       chrom = func.extract_chrom(range[0], range[1])
       chrom.update_info
       max_y = chrom.signal_range[1]
-      chroms.push chrom.normalize.transpose
+      # Normalize XIC but not UV trace!
+      if i == 1 || i == 2
+        chroms.push chrom.normalize.transpose
+      elsif i == 3
+        chroms.push chrom.transpose
+      end
       title = "#{nickname}: #{range[0]} - #{range[1]}"
       raise "wtf why can i == 0" if i == 0
 

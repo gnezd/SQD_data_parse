@@ -66,14 +66,14 @@ def multi_plot(chroms, titles, outdir, svg_name)
     i += 2
   end
 
-  temp_gnuplot = File.new("temp.gplot", "w")
+  temp_gnuplot = File.new("#{outdir}/chromatograms.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
   #   temp_gnuplot.puts plot_line
   temp_gnuplot.puts annotations
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
 
-  result = `gnuplot temp.gplot`
+  result = `gnuplot.exe "#{outdir}/chromatograms.gplot"`
   # result = `rm temp.gplot`
 end
 
@@ -135,7 +135,7 @@ def spectrum_plot(spect, title, outdir, svg_name)
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
 
-  result = `gnuplot temp.gplot`
+  result = `gnuplot.exe temp.gplot`
   # result = `rm temp.gplot`
 end
 

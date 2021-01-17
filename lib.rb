@@ -306,9 +306,13 @@ def plot(data, title, outpath) # Plot xy function with title with gnuplot
   temp_gnuplot = File.new("temp.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
   temp_gnuplot.close
-
-  result = `gnuplot temp.gplot`
-  result = `rm temp.gplot`
+  gnuplot_exe = which 'gnuplot'
+  if gnuplot_exe
+    result = `#{gnuplot_exe} temp.gplot`
+    result = `rm temp.gplot`
+  else
+    puts 'Gunplot not found. Please plot temp.gplot manually.'
+  end
 end
 
 def multi_plot(chroms, titles, outdir, svg_name)
@@ -379,11 +383,27 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   temp_gnuplot = File.new("temp.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
-  #   temp_gnuplot.puts plot_line
   temp_gnuplot.puts annotations
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
+  gnuplot_exe = which 'gnuplot'
+  if gnuplot_exe
+    result = `gnuplot temp.gplot`
+  else
+    puts 'Gnuplot not found. Please plot temp.gplot manually'
+  end
+end
 
-  result = `gnuplot temp.gplot`
-  # result = `rm temp.gplot`
+# Cross-platform way of finding an executable in the $PATH.
+# Copied from https://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
+# which('ruby') #=> /usr/bin/ruby
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  nil
 end

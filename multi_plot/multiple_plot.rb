@@ -11,6 +11,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
   raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
   max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
+  max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
   chroms.each_index do |i|
     table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
     table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
@@ -34,12 +35,13 @@ def multi_plot(chroms, titles, outdir, svg_name)
   annotations = <<~THE_END
     set xlabel 'Retention time (min)' offset 0, 0.5
     set xtics nomirror out scale 0.5, 0.25
+    set xrange [0:#{max_chrom_rt}]
     set mxtics 10
     set yrange [-0.005:1.05]
     set ytics nomirror scale 0.5
     set ylabel 'Normalized ion counts' offset 2.5,0
     set y2tics scale 0.5
-    set y2label 'Absorption (10^{-6} a.u.)' offset -  2.5,0
+    set y2label 'Absorption (a.u.)' offset -  2.5,0
     set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
     set margins 5,9,2.5,0.5
     set linetype 1 lc rgb "black" lw 2
@@ -60,8 +62,8 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   i = 0
   while i < table[0].size
-    plot_line += ", ''" if i > 0
-    plot_line += " using #{i + 1}:#{i + 2} with lines t '#{titles[i / 2]}'"
+    plot_line += ", \\" + "\n''" if i > 0
+    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{titles[i / 2]}'"
     plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
     i += 2
   end

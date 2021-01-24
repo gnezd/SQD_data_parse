@@ -67,7 +67,9 @@ class MasslynxFunction
     return { 'fname' => @fname, 'func_num' => @func_num, 'size' => @size, 'raw_loaded?' => raw_loaded? }
   end
 
-  def extract_chrom(x_0, x_1) # Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+  def extract_chrom(x_0, x_1)
+    # Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+    # Raw data comes in 1M * abs, devide away in the end
     load_raw unless raw_loaded?
     # construct chromatogram name
     #puts @func_num
@@ -98,6 +100,8 @@ class MasslynxFunction
         spectral_width_t += 1
         chrom[scan][1] += @counts[scan][spect]
       end
+      chrom[scan][1] = chrom[scan][1].to_f / 1000000 if @func_num == 3
+      # Devide away 1M if this is UV trace
       spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
     end
 
@@ -376,7 +380,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
   i = 0
   while i < table[0].size
     plot_line += ", ''" if i > 0
-    plot_line += " using #{i + 1}:#{i + 2} with lines t '#{titles[i / 2]}'"
+    plot_line += " using #{i + 1}:($#{i + 2}) with lines t '#{titles[i / 2]}'"
     plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
     i += 2
   end

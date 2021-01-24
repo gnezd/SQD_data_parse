@@ -12,6 +12,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
   raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
   max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
+  max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
   chroms.each_index do |i|
     table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
     table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
@@ -35,12 +36,13 @@ def multi_plot(chroms, titles, outdir, svg_name)
   annotations = <<~THE_END
     set xlabel 'Retention time (min)' offset 0, 0.5
     set xtics nomirror out scale 0.5, 0.25
+    set xrange [0:#{max_chrom_rt}]
     set mxtics 10
     set yrange [-0.005:1.05]
     set ytics nomirror scale 0.5
     set ylabel 'Normalized ion counts' offset 2.5,0
     set y2tics scale 0.5
-    set y2label 'Absorption (10^{-6} a.u.)' offset -  2.5,0
+    set y2label 'Absorption (a.u.)' offset -  2.5,0
     set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
     set margins 5,9,2.5,0.5
     set linetype 1 lc rgb "black" lw 2
@@ -61,20 +63,20 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   i = 0
   while i < table[0].size
-    plot_line += ", ''" if i > 0
-    plot_line += " using #{i + 1}:#{i + 2} with lines t '#{titles[i / 2]}'"
+    plot_line += ", \\" + "\n''" if i > 0
+    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{titles[i / 2]}'"
     plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
     i += 2
   end
 
-  temp_gnuplot = File.new("temp.gplot", "w")
+  temp_gnuplot = File.new("#{outdir}/chromatograms.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
   #   temp_gnuplot.puts plot_line
   temp_gnuplot.puts annotations
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
 
-  result = `gnuplot temp.gplot`
+  result = `gnuplot.exe "#{outdir}/chromatograms.gplot"`
   # result = `rm temp.gplot`
 end
 
@@ -136,7 +138,7 @@ def spectrum_plot(spect, title, outdir, svg_name)
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
 
-  result = `gnuplot temp.gplot`
+  result = `gnuplot.exe temp.gplot`
   # result = `rm temp.gplot`
 end
 
@@ -225,11 +227,15 @@ def report(raw, nickname, pick)
     func = MasslynxFunction.new(raw, i)
 
     query_list[i][0].each do |range| # Prepare extracted chromatogrames
-      chrom = func.extract_chrom(range[0], range[1]).transpose
-      y_f = chrom[1].map { |s| s.to_f }
-      max_y = y_f.max
-      chrom[1] = y_f.map { |y| y / max_y } if i < 3 # MS traces are normalized
-      chroms.push chrom
+      chrom = func.extract_chrom(range[0], range[1])
+      chrom.update_info
+      max_y = chrom.signal_range[1]
+      # Normalize XIC but not UV trace!
+      if i == 1 || i == 2
+        chroms.push chrom.normalize.transpose
+      elsif i == 3
+        chroms.push chrom.transpose
+      end
       title = "#{nickname}: #{range[0]} - #{range[1]}"
       raise "wtf why can i == 0" if i == 0
 

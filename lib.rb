@@ -3,6 +3,7 @@
 # Requirement: gnuplot
 # Content: Class definition of Masslynx_Function
 # And some orphan functions: display_bytes(), bin_x(), chromatogram_extract(), spectrum() and plot()
+require 'CSV'
 
 class MasslynxFunction
   attr_reader :fname, :func_num, :size, :spect, :counts, :scan_index, :scan_size, :total_trace, :retention_time
@@ -66,7 +67,9 @@ class MasslynxFunction
     return { 'fname' => @fname, 'func_num' => @func_num, 'size' => @size, 'raw_loaded?' => raw_loaded? }
   end
 
-  def extract_chrom(x_0, x_1) # Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+  def extract_chrom(x_0, x_1)
+    # Extract chromatogram in given spectral range. Returns <Chromatogram>chrom, <int>Spectral width
+    # Raw data comes in 1M * abs, devide away in the end
     load_raw unless raw_loaded?
     # construct chromatogram name
     #puts @func_num
@@ -97,6 +100,8 @@ class MasslynxFunction
         spectral_width_t += 1
         chrom[scan][1] += @counts[scan][spect]
       end
+      chrom[scan][1] = chrom[scan][1].to_f / 1000000 if @func_num == 3
+      # Devide away 1M if this is UV trace
       spectral_width = (spectral_width_t > spectral_width) ? spectral_width_t : spectral_width
     end
 
@@ -177,9 +182,11 @@ class Chromatogram
 
   def normalize
     # normalize to max
+    update_info
+    #puts [@units[0], "Normalized #{@units[1]}"]#, "#{@name}-int:#{@signal_range[1]}")
     result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{@units[1]}"], "#{@name}-int:#{@signal_range[1]}")
     @data.each_index do |i|
-      result.push([@data[i][0], @data[i][1].to_f / @signal_range[1]])
+      result[i] = [@data[i][0], @data[i][1].to_f / @signal_range[1]]
     end
     result
   end
@@ -187,7 +194,7 @@ class Chromatogram
   def deriv
     # Simple derivative
     result = Chromatogram.new(@data.size-1, "#{@name}-derivative", [@units[0], "d(#{@units[1]})/dt"])
-    result.each_index do |i|
+    (0..result.size-1).each do |i|
       result[i] = [(@data[i][0] + @data[i+1][0]).to_f / 2, (@data[i+1][1]-@data[i][1]).to_f / (@data[i+1][0]-@data[i][0])]
     end
     result
@@ -230,8 +237,9 @@ class Chromatogram
     avg = cut.map{|pt| pt[1]}.reduce(:+).to_f / cut.size
     # Construct deviation array, sort, pick points, calculate sd
     dev = cut.map{|pt| [pt[0], avg - pt[1]]}
-    dev.sort! {|pta, ptb| ptb[1]**2 <=> pta[1]**2}
-    cut = dev[0..dev.size*rank.to_i] # cut out the top ranking close to avg. Not the reuse of cut and avg
+    dev.sort! {|pta, ptb| pta[1]**2 <=> ptb[1]**2}
+    cut = dev[0..(dev.size*rank).to_i] # cut out the top ranking close to avg. Not the reuse of cut and avg
+    puts cut
     avg = cut.map{|pt| pt[1]}.reduce(:+).to_f / cut.size
     (cut.map{ |pt| (pt[1] - avg)**2 }.reduce(:+).to_f / cut.size)**0.5
   end
@@ -302,7 +310,104 @@ def plot(data, title, outpath) # Plot xy function with title with gnuplot
   temp_gnuplot = File.new("temp.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
   temp_gnuplot.close
+  gnuplot_exe = which 'gnuplot'
+  if gnuplot_exe
+    result = `#{gnuplot_exe} temp.gplot`
+    result = `rm temp.gplot`
+  else
+    puts 'Gunplot not found. Please plot temp.gplot manually.'
+  end
+end
 
-  result = `gnuplot temp.gplot`
-  result = `rm temp.gplot`
+def multi_plot(chroms, titles, outdir, svg_name)
+  # chroms and titles should be arrays
+  # or define a data class chrom? Would actually be reusable?
+
+  # create data table
+  table = Array.new
+  raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
+
+  max_chrom_length = (chroms.max_by { |chrom| chrom[0].size })[0].size
+  #puts "chrom lengths: #{chroms.map {|chr| chr[0].size}}"
+  #puts "max chrom length: #{max_chrom_length}"
+  chroms.each_index do |i|
+    table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
+    table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
+  end
+  table = table.transpose
+
+  # create data csv for post-process
+  csv_name = "#{outdir}/#{svg_name}.csv"
+  fo = File.new(csv_name, "w")
+  csv_out = CSV.new(fo)
+  table.each do |row|
+    csv_out << row
+  end
+  fo.close
+
+  gnuplot_headder = <<~THE_END
+    set datafile separator ','
+    set terminal svg enhanced mouse standalone
+  THE_END
+
+  annotations = <<~THE_END
+    set xlabel 'Retention time (min)' offset 0, 0.5
+    set xtics nomirror out scale 0.5, 0.25
+    set mxtics 10
+    set yrange [*:*]
+    set ytics nomirror scale 0.5
+    set ylabel 'Normalized ion counts' offset 2.5,0
+    set y2tics scale 0.5
+    set y2label 'Absorption (10^{-6} a.u.)' offset -  2.5,0
+    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
+    set margins 5,9,2.5,0.5
+    set linetype 1 lc rgb "black" lw 2
+    set linetype 2 lc rgb "dark-red" lw 2
+    set linetype 3 lc rgb "olive" lw 2
+    set linetype 4 lc rgb "navy" lw 2
+    set linetype 5 lc rgb "red" lw 2
+    set linetype 6 lc rgb "dark-turquoise" lw 2
+    set linetype 7 lc rgb "dark-blue" lw 2
+    set linetype 8 lc rgb "dark-violet" lw 2
+    set linetype cycle 8
+    set output '#{outdir}/#{svg_name}.svg'
+  THE_END
+
+  # plot_line compilation
+  plot_line = "plot '#{csv_name}'"
+  raise if (table[0].size % 2) != 0
+
+  i = 0
+  while i < table[0].size
+    plot_line += ", ''" if i > 0
+    plot_line += " using #{i + 1}:($#{i + 2}) with lines t '#{titles[i / 2]}'"
+    plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
+    i += 2
+  end
+
+  temp_gnuplot = File.new("temp.gplot", "w")
+  temp_gnuplot.puts gnuplot_headder
+  temp_gnuplot.puts annotations
+  temp_gnuplot.puts plot_line
+  temp_gnuplot.close
+  gnuplot_exe = which 'gnuplot'
+  if gnuplot_exe
+    result = `gnuplot temp.gplot`
+  else
+    puts 'Gnuplot not found. Please plot temp.gplot manually'
+  end
+end
+
+# Cross-platform way of finding an executable in the $PATH.
+# Copied from https://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
+# which('ruby') #=> /usr/bin/ruby
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  nil
 end

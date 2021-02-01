@@ -2,13 +2,13 @@
 require '../lib.rb'
 require 'csv'
 
-def multi_plot(chroms, titles, outdir, svg_name)
+def multi_plot_deprecate(chroms, titles, outdir, svg_name)
   # chroms and titles should be arrays
   # or define a data class chrom? Would actually be reusable?
 
   # create data table
   table = Array.new
-  raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
+  raise "Mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
   max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
   max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
@@ -162,10 +162,14 @@ def report(raw, nickname, pick)
     next if query == nil
     # If some query. magic regex lazy 1-liner, assignment also works as a nil check :p
     if qmatch = query.match(/^(\D+)?([\d\.]+)\s?(?:\-)?\s?([\d\.]+)?\s?(nm|\+|\-|min)$/)
-      puts qmatch[1..4].join '|'
-      tolerance = 1.0 # Default spectral tolerance for spectra pick
+      
+      # Debug dump of parsed queries      
+      puts qmatch[1..4].join '|' if $debug == 1
+
+      tolerance = 1.0 # Default spectral tolerance for spectra extraction
       chrome_spect = 0 # Default: 0 for chromatogram, 1 for spectrum
-      case qmatch[4] # which type of query?
+
+      case qmatch[4] # Which detector channel?
       when "+" # ESI+
         funcnum = 1
       when "-" # ESI-
@@ -173,14 +177,17 @@ def report(raw, nickname, pick)
       when "nm" # UV
         funcnum = 3
       when "min" 
-        chrome_spect = 1 # Spectrum!
+        # Spectrum!
+        chrome_spect = 1
         tolerance = 0.05 # Default rt tolerance for time slice
+
         if qmatch[3] == nil # make range if no range was given
-        start = qmatch[2].to_f - 0.5 * tolerance
+          start = qmatch[2].to_f - 0.5 * tolerance
           ending = start + tolerance
         else
           start, ending = qmatch[2..3].map { |s| s.to_f }.sort
         end
+
         case qmatch[1]
         when "+"
           funcnum = 1
@@ -191,14 +198,13 @@ def report(raw, nickname, pick)
         when nil
           puts "No spectrum type specified! Plotting all three: ESI+, ESI- and UV."
           (1..3).each {|type| query_list[type][1].push [start, ending].sort}
-          #query_list[2][1].push [start, ending].sort
-          #query_list[3][1].push [start, ending].sort
           next
         # Early break for wildcard spectrum extraction. As long as it works...
         else
           puts "Query entry #{query} is problematic, skipped. #{qmatch}"
           next
         end
+
       end
 
       if qmatch[3] == nil # make range if no range was given. Should be the same as wildcard spectrum extraction case.
@@ -213,7 +219,7 @@ def report(raw, nickname, pick)
     end
   end
 
-  puts "for file #{raw}"
+  puts "Queries on file #{raw}"
   puts "UV: #{query_list[3]}"
   puts "ESI+: #{query_list[1]}"
   puts "ESI-: #{query_list[2]}"

@@ -109,10 +109,12 @@ class MasslynxFunction
     return chrom
   end
 
-  def extract_spect(t_0, t_1) # Extract spectrum in given retention time range
+  def extract_spect(t_0, t_1, res = 1) # Extract spectrum in given retention time range
     # DANGER of NOT binning!!!!! (10 Nov 2020)
     # Decides not to bin, but normalize towards chrom_width
     load_raw unless raw_loaded?
+    res = 0.1 if 
+
     sum = Hash.new { 0 }
     chrom_width = 0 # for UV normalization
     (0..@size - 1).each do |scan|
@@ -126,8 +128,9 @@ class MasslynxFunction
     end
     normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
     puts "Spectral normalizer is #{normalizer}"
-    result = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]}
-    result
+    arr = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]}
+    result = Spectrum.new(arr.size, "#{t0}-#{t1}", "counts")
+    
   end
 
 end
@@ -162,7 +165,6 @@ class Chromatogram
 
   def push(pt)
     raise if pt.class != Array || pt.size != 2
-
     @data.push pt
   end
 
@@ -252,6 +254,50 @@ class Chromatogram
   end
 end
 
+class Spectrum
+  attr_accessor :name, :units, :spectral_range, :signal_range, :desc, :size
+
+  def initialize(size, name, units, desc = nil)
+    @size = size
+    @data = Array.new(size) { [0.0, 0.0] }
+    @name = name.to_s
+    @units = units
+    @desc = desc ? desc : Hash.new
+  end
+
+  def inspect
+    return { 'name' => @name, 'size' => @size, 'spectral_range' => @spectral_range, 'signal_range' => @signal_range, 'desc' => @desc }
+  end
+
+  def update_info
+    @spectral_range = @data.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
+    @signal_range = @data.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
+  end
+
+  def [](i)
+    @data[i]
+  end
+
+  def []=(i, input)
+    @data[i] = input
+  end
+
+  def push(pt)
+    raise if pt.class != Array || pt.size != 2
+    @data.push pt
+  end
+
+  def to_a
+    @data[0..@size-1]
+  end
+
+  def transpose
+    x = (0..@size-1).map {|x| @data[x][0]}
+    y = (0..@size-1).map {|x| @data[x][1]}
+    [x, y]
+  end
+end
+
 # WHERE DO I PUT THE datatable(chroms, titles) ??
 # It's own class? or??
 
@@ -325,11 +371,10 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   # create data table
   table = Array.new
-  raise "mismatch length of chromatograms and titles!" if chroms.size != titles.size
+  raise "Mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
-  max_chrom_length = (chroms.max_by { |chrom| chrom[0].size })[0].size
-  #puts "chrom lengths: #{chroms.map {|chr| chr[0].size}}"
-  #puts "max chrom length: #{max_chrom_length}"
+  max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
+  max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
   chroms.each_index do |i|
     table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
     table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
@@ -353,12 +398,13 @@ def multi_plot(chroms, titles, outdir, svg_name)
   annotations = <<~THE_END
     set xlabel 'Retention time (min)' offset 0, 0.5
     set xtics nomirror out scale 0.5, 0.25
+    set xrange [0:#{max_chrom_rt}]
     set mxtics 10
-    set yrange [*:*]
+    set yrange [-0.005:1.05]
     set ytics nomirror scale 0.5
     set ylabel 'Normalized ion counts' offset 2.5,0
     set y2tics scale 0.5
-    set y2label 'Absorption (10^{-6} a.u.)' offset -  2.5,0
+    set y2label 'Absorption (a.u.)' offset -  2.5,0
     set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
     set margins 5,9,2.5,0.5
     set linetype 1 lc rgb "black" lw 2
@@ -379,23 +425,21 @@ def multi_plot(chroms, titles, outdir, svg_name)
 
   i = 0
   while i < table[0].size
-    plot_line += ", ''" if i > 0
-    plot_line += " using #{i + 1}:($#{i + 2}) with lines t '#{titles[i / 2]}'"
+    plot_line += ", \\" + "\n''" if i > 0
+    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{titles[i / 2]}'"
     plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
     i += 2
   end
 
-  temp_gnuplot = File.new("temp.gplot", "w")
+  temp_gnuplot = File.new("#{outdir}/chromatograms.gplot", "w")
   temp_gnuplot.puts gnuplot_headder
+  #   temp_gnuplot.puts plot_line
   temp_gnuplot.puts annotations
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
-  gnuplot_exe = which 'gnuplot'
-  if gnuplot_exe
-    result = `gnuplot temp.gplot`
-  else
-    puts 'Gnuplot not found. Please plot temp.gplot manually'
-  end
+
+  result = `gnuplot.exe "#{outdir}/chromatograms.gplot"`
+  # result = `rm temp.gplot`
 end
 
 # Cross-platform way of finding an executable in the $PATH.

@@ -3,7 +3,7 @@
 # Requirement: gnuplot
 # Content: Class definition of Masslynx_Function
 # And some orphan functions: display_bytes(), bin_x(), chromatogram_extract(), spectrum() and plot()
-require 'CSV'
+require 'csv'
 
 class MasslynxFunction
   attr_reader :fname, :func_num, :size, :spect, :counts, :scan_index, :scan_size, :total_trace, :retention_time
@@ -113,24 +113,42 @@ class MasslynxFunction
     # DANGER of NOT binning!!!!! (10 Nov 2020)
     # Decides not to bin, but normalize towards chrom_width
     load_raw unless raw_loaded?
-    res = 0.1 if 
+    raise "rt out of range!" unless t_0 > @retention_time[0] && t_1 < @retention_time[-1]
+    res = 0.1 if func_num < 3 # If mass spec
 
-    sum = Hash.new { 0 }
-    chrom_width = 0 # for UV normalization
+    chrom_width = 0 # For UV normalization
+    
+    sum = Hash.new { 0 } # Summation from unknown spectral value
+    
+    # Summation
     (0..@size - 1).each do |scan|
       next if @retention_time[scan] < t_0
       break if @retention_time[scan] > t_1
-      #puts "extracting #{scan}" #debug
       chrom_width += 1
       (0..@spect[scan].size - 1).each do |sp|
         sum[@spect[scan][sp]] += @counts[scan][sp]
       end
     end
+    
     normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
     puts "Spectral normalizer is #{normalizer}"
-    arr = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]}
-    result = Spectrum.new(arr.size, "#{t0}-#{t1}", "counts")
+    arr = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]} #Sort and transform to array
+    # Q: Would a bin-while summing be faster or utilization Hash for summing from unknown spectral values be faster...?
     
+    result = Spectrum.new("#{t_0}-#{t_1}", ["m/z", "counts"])
+    puts "result.size was initialized as #{((arr[-1][0] - arr[0][0])/res).to_i} = #{result.size}"
+    result.spectral_range = [arr[0][0], arr[-1][0]]
+    puts result.spectral_range
+    puts result.size
+    
+    (0..result.size - 1).each do |i|
+      result[i] = [result.spectral_range[0] + (result.spectral_range[1] - result.spectral_range[0])/res*i, 0.0]
+    end
+
+    arr.each do |pt|
+      puts result[((pt[0] - result.spectral_range[0]) / res).to_i]
+      result[((pt[0] - result.spectral_range[0]) / res).to_i][1] += pt[1]
+    end
   end
 
 end
@@ -254,46 +272,42 @@ class Chromatogram
   end
 end
 
-class Spectrum
-  attr_accessor :name, :units, :spectral_range, :signal_range, :desc, :size
+class Spectrum < Array
+  attr_accessor :name, :units, :spectral_range, :signal_range, :desc
 
-  def initialize(size, name, units, desc = nil)
-    @size = size
-    @data = Array.new(size) { [0.0, 0.0] }
+  def initialize(name, units, desc = nil)
     @name = name.to_s
     @units = units
     @desc = desc ? desc : Hash.new
   end
 
   def inspect
-    return { 'name' => @name, 'size' => @size, 'spectral_range' => @spectral_range, 'signal_range' => @signal_range, 'desc' => @desc }
+    return { 'name' => @name, 'size' => self.size, 'spectral_range' => @spectral_range, 'signal_range' => @signal_range, 'desc' => @desc }.to_s
   end
 
   def update_info
-    @spectral_range = @data.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
-    @signal_range = @data.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
+    @spectral_range = self.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
+    @signal_range = self.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
   end
 
-  def [](i)
-    @data[i]
+  def to_s
+    inspect
   end
 
   def []=(i, input)
-    @data[i] = input
+#    @data[i] = input
+    raise "Pushing not a pair of numbers into spectrum"if input.class != Array || input.size != 2
+    super(i, input)
   end
 
-  def push(pt)
-    raise if pt.class != Array || pt.size != 2
-    @data.push pt
-  end
-
-  def to_a
-    @data[0..@size-1]
+  def push(input)
+    raise "Pushing not a pair of numbers into spectrum" if input.class != Array || input.size != 2
+    super input
   end
 
   def transpose
-    x = (0..@size-1).map {|x| @data[x][0]}
-    y = (0..@size-1).map {|x| @data[x][1]}
+    x = (0..size-1).map {|x| self[x][0]}
+    y = (0..size-1).map {|x| self[x][1]}
     [x, y]
   end
 end
@@ -373,8 +387,8 @@ def multi_plot(chroms, titles, outdir, svg_name)
   table = Array.new
   raise "Mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
-  max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
-  max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
+  max_chrom_length = (chroms.max_by { |chrom| chrom[0].size })[0].size
+  max_chrom_rt = (chroms.max_by {|chrome| chrome[0][-1]})[0][-1]
   chroms.each_index do |i|
     table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
     table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
@@ -454,4 +468,12 @@ def which(cmd)
     end
   end
   nil
+end
+
+def spectra_plot(spectra, outdir, svg_name)
+  raise "Spectra should be array" unless spectra.instance_of? Array
+  raise "Somethin in the spectra array is not a spectrum" unless spectra.all? {|spectrum| spectrum.instance_of? Spectrum}
+  
+  table = Array.new
+  max_spectral_width = spectra.max_by {|spectrum| spectrum.size}.size
 end

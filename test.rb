@@ -1,4 +1,5 @@
 require './lib.rb'
+puts ARGV
 =begin
 spe = Spectrum.new('aa', 'nounit')
 spe.push [0.0, 1.1]
@@ -44,3 +45,4 @@ msl = MasslynxFunction.new('raw/Bode - ycd20c29-2-7mid-1_20200315.raw', 2)
 spe = msl.extract_spect(2.5, 2.6)
 spe2 = MasslynxFunction.new('raw/Bode - ycd20c29-2-7mid-1_20200315.raw', 1).extract_spect(3.1, 3.5)
 spectra_plot([spe, spe2], '.', 'spectra')
+spectra_plot([spe, spe2], '.', 'spectranormalized', 'true')

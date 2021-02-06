@@ -1,146 +1,6 @@
 # prototype multiple plot
 require '../lib.rb'
 require 'csv'
-
-def multi_plot_deprecate(chroms, titles, outdir, svg_name)
-  # chroms and titles should be arrays
-  # or define a data class chrom? Would actually be reusable?
-
-  # create data table
-  table = Array.new
-  raise "Mismatch length of chromatograms and titles!" if chroms.size != titles.size
-
-  max_chrom_length = (chroms.max { |chrom| chrom[0].size })[0].size
-  max_chrom_rt = (chroms.max {|chrome| chrome[0][-1]})[0][-1]
-  chroms.each_index do |i|
-    table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
-    table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
-  end
-  table = table.transpose
-
-  # create data csv for post-process
-  csv_name = "#{outdir}/#{svg_name}.csv"
-  fo = File.new(csv_name, "w")
-  csv_out = CSV.new(fo)
-  table.each do |row|
-    csv_out << row
-  end
-  fo.close
-
-  gnuplot_headder = <<~THE_END
-    set datafile separator ','
-    set terminal svg enhanced mouse standalone
-  THE_END
-
-  annotations = <<~THE_END
-    set xlabel 'Retention time (min)' offset 0, 0.5
-    set xtics nomirror out scale 0.5, 0.25
-    set xrange [0:#{max_chrom_rt}]
-    set mxtics 10
-    set yrange [-0.005:1.05]
-    set ytics nomirror scale 0.5
-    set ylabel 'Normalized ion counts' offset 2.5,0
-    set y2tics scale 0.5
-    set y2label 'Absorption (a.u.)' offset -  2.5,0
-    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
-    set margins 5,9,2.5,0.5
-    set linetype 1 lc rgb "black" lw 2
-    set linetype 2 lc rgb "dark-red" lw 2
-    set linetype 3 lc rgb "olive" lw 2
-    set linetype 4 lc rgb "navy" lw 2
-    set linetype 5 lc rgb "red" lw 2
-    set linetype 6 lc rgb "dark-turquoise" lw 2
-    set linetype 7 lc rgb "dark-blue" lw 2
-    set linetype 8 lc rgb "dark-violet" lw 2
-    set linetype cycle 8
-    set output '#{outdir}/#{svg_name}.svg'
-  THE_END
-
-  # plot_line compilation
-  plot_line = "plot '#{csv_name}'"
-  raise if (table[0].size % 2) != 0
-
-  i = 0
-  while i < table[0].size
-    plot_line += ", \\" + "\n''" if i > 0
-    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{titles[i / 2]}'"
-    plot_line += " axis x1y2" if titles[i / 2] =~ /nm$/
-    i += 2
-  end
-
-  temp_gnuplot = File.new("#{outdir}/chromatograms.gplot", "w")
-  temp_gnuplot.puts gnuplot_headder
-  #   temp_gnuplot.puts plot_line
-  temp_gnuplot.puts annotations
-  temp_gnuplot.puts plot_line
-  temp_gnuplot.close
-
-  result = `gnuplot.exe "#{outdir}/chromatograms.gplot"`
-  # result = `rm temp.gplot`
-end
-
-def spectrum_plot(spect, title, outdir, svg_name)
-  # chroms and titles should be arrays
-  # or define a data class chrom? Would actually be reusable?
-
-  # create data table
-  table = Array.new
-  # chroms.each_index do |i|
-  table.push([title] + spect[0])
-  table.push([''] + spect[1])
-  # end
-  table = table.transpose
-
-  # create data csv for post-process
-  csv_name = "#{outdir}/#{svg_name}-#{title}.csv"
-  fo = File.new(csv_name, "w")
-  csv_out = CSV.new(fo)
-  table.each do |row|
-    csv_out << row
-  end
-  fo.close
-
-  # Determine spectrum type from title (Yes this is stupid and undoing sth done I know...)
-  if title =~ /ESI[\-\+]$/
-    xlabel = "m/z"
-    ylabel = "Ion counts"
-  elsif title =~ /\-UV$/
-    xlabel = "Wavelength (nm)"
-    ylabel = "Accumulated absorption"
-  else
-    raise "This title shouldn't happen."
-  end
-
-  gnuplot_headder = <<~THE_END
-    set datafile separator ','
-    set terminal svg
-  THE_END
-
-  annotations = <<~THE_END
-    set xlabel '#{xlabel}' offset 0, 0.5
-    set xtics nomirror scale 0.5, 0.25
-    set mxtics 10
-    set ytics nomirror scale 0.5
-    set ylabel '#{ylabel}' offset 3,0
-    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
-    set margins 9,3,2.5,0.5
-    set output '#{outdir}/#{svg_name}.svg'
-  THE_END
-
-  # plot_line compilation
-  plot_line = "plot '#{csv_name}'"
-  plot_line += " using 1:2 with lines t '#{title}'"
-
-  temp_gnuplot = File.new("temp.gplot", "w")
-  temp_gnuplot.puts gnuplot_headder
-  temp_gnuplot.puts annotations
-  temp_gnuplot.puts plot_line
-  temp_gnuplot.close
-
-  result = `gnuplot.exe temp.gplot`
-  # result = `rm temp.gplot`
-end
-
 def report(raw, nickname, pick)
   # Generate of chromatograms and spectrums to generate from a line list.csv
   # This function should probably be renamed
@@ -252,32 +112,38 @@ def report(raw, nickname, pick)
 
     query_list[i][1].each do |range| # Prepare time domain slice spectrum
       spect = func.extract_spect(range[0], range[1])
-      # puts spect[1].size
-      y_f = spect[1].map { |s| s.to_f }
-      # Normalization necessary?
-      # max_y = y_f.max
-      # spect[1] = y_f.map {|y| y/max_y} if i < 3
+      spect.name = nickname + spect.name
       if func.func_num > 2
         uv_spects.push spect
       else
         ms_spects.push spect
       end
-      #title = "#{nickname}-#{range[0]}-#{range[1]}min"
       raise "wtf why can i == 0" if i == 0
-
-      # title += " + * #{"%.3e" % max_y}" if i == 1
-      title += "-ESI+" if i == 1
-      title += "-ESI-" if i == 2
-      title += "-UV" if i == 3
-      s_titles.push title
     end
   end
-  return chroms, c_titles, spects, s_titles
+  return chroms, c_titles, ms_spects, uv_spects
 end
 
-outdir = "Plot-#{Time.now.strftime("%d%b%Y-%k%M%S")}"
+# Begin main
+listcsv = ARGV[0]
+options = {}
+
+if listcsv == nil 
+  puts "Cannot find instruction from ARGV. Trying default: list.csv"
+  listcsv = 'list.csv'
+elsif !(File.exists?(listcsv))
+  listcsv = 'list.csv'
+  ARGV[0].split(',').each { |pair| options[pair.split('=')[0]] = pair.split('=')[1]}
+else
+  puts "Opening instruction file #{listcsv}"
+  ARGV[1].split(',').each {|pair| options[pair.split('=')[0]] = pair.split('=')[1]}
+end
+
+puts options
+
+outdir = "Plot-#{File.basename(listcsv, '.*')}-#{Time.now.strftime("%d%b%Y-%k%M%S")}"
 Dir.mkdir outdir
-result = `cp list.csv #{outdir}/`
+result = `cp #{listcsv} #{outdir}/`
 
 plot_list = Array.new
 CSV.read("list.csv").each do |row|
@@ -291,20 +157,21 @@ ms_spects = Array.new
 uv_spects = Array.new
 
 plot_list.each do |entry|
-  new_chroms, new_c_titles, new_spects, new_s_titles = report(entry[0], entry[1], entry[2])
+  new_chroms, new_c_titles, new_ms_spects, new_uv_spects = report(entry[0], entry[1], entry[2])
   chroms += new_chroms
   c_titles += new_c_titles
-  spects += new_spects
-  s_titles += new_s_titles
+  ms_spects += new_ms_spects
+  uv_spects += new_uv_spects
 end
 
 if !(chroms == nil || chroms == []) # If there are chromatograms to plot
   multi_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
 end
 
-if !(spects == nil || spects == []) # If there are spectra to plot
-  spects.each_index do |i| # spectras are plotted separately
-    # puts "s_titles are #{s_titles}"
-    spectrum_plot(spects[i], s_titles[i], outdir, "#{s_titles[i]}")
-  end
+if !(uv_spects == nil || uv_spects == []) # If there are spectra to plot
+  spectra_plot(uv_spects, outdir, 'uv_spect',options['normalize_uv'])
+end
+
+if !(ms_spects == nil || ms_spects == []) # If there are spectra to plot
+  spectra_plot(ms_spects, outdir, 'ms_spect', options['normalize_ms'])
 end

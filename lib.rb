@@ -129,7 +129,7 @@ class MasslynxFunction
         sum[@spect[scan][sp]] += @counts[scan][sp]
       end
     end
-    
+    #ua.u. -> a.u
     normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
     #puts "Spectral normalizer is #{normalizer}"
     arr = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]} #Sort and transform to array
@@ -385,7 +385,7 @@ def plot(data, title, outpath) # Plot xy function with title with gnuplot
   end
 end
 
-def multi_plot(chroms, titles, outdir, svg_name)
+def multi_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
   # chroms and titles should be arrays
   # or define a data class chrom? Would actually be reusable?
 
@@ -458,7 +458,7 @@ def multi_plot(chroms, titles, outdir, svg_name)
   temp_gnuplot.puts plot_line
   temp_gnuplot.close
 
-  result = `gnuplot.exe "#{outdir}/chromatograms.gplot"`
+  result = `#{which('gnuplot')} "#{outdir}/chromatograms.gplot"`
   # result = `rm temp.gplot`
 end
 
@@ -477,7 +477,7 @@ def which(cmd)
 end
 
 # Generate csv file from various spectra and plot with gnuplot
-def spectra_plot(spectra, outdir, svg_name)
+def spectra_plot(spectra, outdir, svg_name, normalize = nil)
   raise "Spectra should be array" unless spectra.instance_of? Array
   raise "Somethin in the spectra array is not a spectrum" unless spectra.all? {|spectrum| spectrum.instance_of? Spectrum}
   raise "Spectral units don't match!" unless spectra.all? {|spectrum| spectrum.units == spectra[0].units}  
@@ -513,7 +513,6 @@ def spectra_plot(spectra, outdir, svg_name)
     set xtics nomirror out scale 0.5, 0.25
     set xrange [#{min_spectral_value-5}:#{max_spectral_value+5}]
     set mxtics 10
-    set yrange [*:1.05*#{max_count}]
     set ytics nomirror scale 0.5
     set ylabel '#{spectra[0].units[1]}' offset 2.5,0
     set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
@@ -529,6 +528,11 @@ def spectra_plot(spectra, outdir, svg_name)
     set linetype cycle 8
     set output '#{outdir}/#{svg_name}.svg'
   THE_END
+  if normalize == 'true'
+    annotations += "set yrange [-0.1:1.05]"
+  else
+    annotations += "set yrange [*:1.05*#{max_count}]"
+  end
 
   # plot_line compilation
   plot_line = "plot '#{csv_name}'"
@@ -537,7 +541,12 @@ def spectra_plot(spectra, outdir, svg_name)
   i = 0
   while i < table[0].size
     plot_line += ", \\" + "\n''" if i > 0
-    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{spectra[i/2].name}'"
+    if normalize == 'true'
+      normalizer = spectra[i/2].signal_range[1]
+      plot_line += " u ($#{i + 1}):($#{i + 2})/#{normalizer} w lines t '#{spectra[i/2].name} * #{"%.3e" % normalizer}'"
+    else
+      plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{spectra[i/2].name}'"
+    end
     i += 2
   end
 

@@ -1,37 +1,48 @@
-# Test for refactoring lib.rb
 require './lib.rb'
-require 'benchmark'
+puts ARGV
+=begin
+spe = Spectrum.new('aa', 'nounit')
+spe.push [0.0, 1.1]
+spe.push [2.2, 3.1]
 
-time_load = Benchmark.measure do
-  puts "load func"
-  #$func = Masslynx_Function.new('/Dropbox/Dropbox/LAb/Scripting field/Datacp/LCMS-Data/Bode - ycd2403tr-1548-1_20201109.raw', 3)
-  $func = MasslynxFunction.new('./raw/Bode - ycd20c29-2-7-1_20200315.raw', 2)
+puts "Before info update"
+puts spe.inspect
+
+spe.update_info
+
+puts "After info update:"
+puts spe.inspect
+puts "Dumping content:"
+spe.each {|i| puts i.join('|')}
+puts "Using map:"
+puts spe.map {|pt| pt.join '|'}
+puts "Transpose:"
+spe.transpose.each {|i| puts i.join '|'}
+
+
+# Manual plotting test
+csvout = File.open('test.csv', 'w')
+csv_out = CSV.new csvout
+spe.each do |row|
+    csv_out << row
 end
-puts "scan index size: #{$func.scan_index.size}"
-time_1st_ext = Benchmark.measure do
-  $ext = $func.extract_chrom(200, 210)
-end
+csvout.close
+gplot_out = File.open('test.gplot', 'w')
+gplot_out.puts "
+set datafile separator ','
+set terminal svg
+set output 'test.svg'
+plot 'test.csv' with lines
+"
+gplot_out.close
 
-time_2nd_ext = Benchmark.measure do
-  $ext = $func.extract_spect(1, 1.1)
-end
-puts "--- Loading time benchmarks ---"
-puts "Loading function: #{time_load}"
-puts "1st extraction: #{time_1st_ext}"
-puts "2nd extraction: #{time_2nd_ext}"
+puts `#{which('gnuplot')} test.gplot`
+=end
 
-puts "--- Testing Chromatogram methods ---"
-puts "Extracting 200 - 210 XIC"
-chrom1 = $func.extract_chrom(200, 210)
-puts "Computing derivative"
-chrom2 = chrom1.deriv
-puts "chrom1 size: #{chrom1.size}"
-puts "chrom2 size: #{chrom2.size}"
+puts "Now testing Masslynxfunction.extract_spect"
 
-multi_plot([chrom1.normalize.transpose, chrom2.normalize.transpose], ['chrom1', 'chrom2'], './', 'testplot')
-
-puts "--- Testing sd_rank ---"
-puts chrom1.sd_rank([3, 4], 0.5)/chrom1.signal_range[1]
-
-#test ma
-#rewrite multi-plot
+msl = MasslynxFunction.new('raw/Bode - ycd20c29-2-7mid-1_20200315.raw', 2)
+spe = msl.extract_spect(2.5, 2.6)
+spe2 = MasslynxFunction.new('raw/Bode - ycd20c29-2-7mid-1_20200315.raw', 1).extract_spect(3.1, 3.5)
+spectra_plot([spe, spe2], '.', 'spectra')
+spectra_plot([spe, spe2], '.', 'spectranormalized', 'true')

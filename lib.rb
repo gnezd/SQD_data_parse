@@ -131,26 +131,32 @@ class MasslynxFunction
     end
     
     normalizer = (@func_num == 3) ? (chrom_width * 10**6) : 1
-    puts "Spectral normalizer is #{normalizer}"
+    #puts "Spectral normalizer is #{normalizer}"
     arr = sum.sort.to_a.map {|pt| [pt[0], pt[1].to_f / normalizer]} #Sort and transform to array
     # Q: Would a bin-while summing be faster or utilization Hash for summing from unknown spectral values be faster...?
     
-    result = Spectrum.new("#{t_0}-#{t_1}", ["m/z", "counts"])
-    puts "result.size was initialized as #{((arr[-1][0] - arr[0][0])/res).to_i} = #{result.size}"
-    result.spectral_range = [arr[0][0], arr[-1][0]]
-    puts result.spectral_range
-    puts result.size
-    
-    (0..result.size - 1).each do |i|
-      result[i] = [result.spectral_range[0] + (result.spectral_range[1] - result.spectral_range[0])/res*i, 0.0]
+    case @func_num
+    when 1
+      result = Spectrum.new("ESI+ #{t_0}-#{t_1}", ["m/z", "counts"])
+    when 2
+      result = Spectrum.new("ESI- #{t_0}-#{t_1}", ["m/z", "counts"])
+    when 3
+      result = Spectrum.new("UV #{t_0}-#{t_1}", ["nm", "Abs"])
     end
+    result.spectral_range = [arr[0][0], arr[-1][0]]
+    (0..((arr[-1][0] - arr[0][0])/res).to_i - 1).each do |i|
+      result[i] = [result.spectral_range[0] + res*i, 0.0]
+    end
+    
+    #puts result.spectral_range
+    #puts "result.size was initialized as #{((arr[-1][0] - arr[0][0])/res).to_i} = #{result.size}"
 
     arr.each do |pt|
-      puts result[((pt[0] - result.spectral_range[0]) / res).to_i]
-      result[((pt[0] - result.spectral_range[0]) / res).to_i][1] += pt[1]
+      result[((pt[0] - result.spectral_range[0]) / res).to_i - 1][1] += pt[1]
     end
+    result.update_info
+    result
   end
-
 end
 
 class Chromatogram
@@ -470,10 +476,79 @@ def which(cmd)
   nil
 end
 
+# Generate csv file from various spectra and plot with gnuplot
 def spectra_plot(spectra, outdir, svg_name)
   raise "Spectra should be array" unless spectra.instance_of? Array
   raise "Somethin in the spectra array is not a spectrum" unless spectra.all? {|spectrum| spectrum.instance_of? Spectrum}
-  
-  table = Array.new
+  raise "Spectral units don't match!" unless spectra.all? {|spectrum| spectrum.units == spectra[0].units}  
+
+  max_spectral_value = spectra.max_by {|spectrum| spectrum.spectral_range[1]}.spectral_range[1]
+  min_spectral_value = spectra.max_by {|spectrum| spectrum.spectral_range[0]}.spectral_range[0]
+  max_count = spectra.max_by {|spectrum| spectrum.signal_range[1]}.signal_range[1]
   max_spectral_width = spectra.max_by {|spectrum| spectrum.size}.size
+
+  table = Array.new
+  spectra.each do |spectrum|
+    table.push([spectrum.name] + spectrum.transpose[0] + ([''] * (max_spectral_width - spectrum.size)))
+    table.push([''] + spectrum.transpose[1] + ([''] * (max_spectral_width - spectrum.size)))
+  end
+  #table.each_with_index {|row, i| puts "#{i}th: length of #{row.size}"}
+  table = table.transpose
+
+  csv_name = "#{outdir}/#{svg_name}.csv"
+  fo = File.new(csv_name, "w")
+  csv_out = CSV.new(fo)
+  table.each do |row|
+    csv_out << row
+  end
+  fo.close
+
+  gnuplot_headder = <<~THE_END
+    set datafile separator ','
+    set terminal svg enhanced mouse standalone
+  THE_END
+
+  annotations = <<~THE_END
+    set xlabel '#{spectra[0].units[0]}' offset 0, 0.5
+    set xtics nomirror out scale 0.5, 0.25
+    set xrange [#{min_spectral_value-5}:#{max_spectral_value+5}]
+    set mxtics 10
+    set yrange [*:1.05*#{max_count}]
+    set ytics nomirror scale 0.5
+    set ylabel '#{spectra[0].units[1]}' offset 2.5,0
+    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
+    set margins 5,9,2.5,0.5
+    set linetype 1 lc rgb "black" lw 2
+    set linetype 2 lc rgb "dark-red" lw 2
+    set linetype 3 lc rgb "olive" lw 2
+    set linetype 4 lc rgb "navy" lw 2
+    set linetype 5 lc rgb "red" lw 2
+    set linetype 6 lc rgb "dark-turquoise" lw 2
+    set linetype 7 lc rgb "dark-blue" lw 2
+    set linetype 8 lc rgb "dark-violet" lw 2
+    set linetype cycle 8
+    set output '#{outdir}/#{svg_name}.svg'
+  THE_END
+
+  # plot_line compilation
+  plot_line = "plot '#{csv_name}'"
+  raise if (table[0].size % 2) != 0
+
+  i = 0
+  while i < table[0].size
+    plot_line += ", \\" + "\n''" if i > 0
+    plot_line += " u ($#{i + 1}):($#{i + 2}) w lines t '#{spectra[i/2].name}'"
+    i += 2
+  end
+
+  temp_gnuplot = File.new("#{outdir}/#{svg_name}-spectra.gplot", "w")
+  temp_gnuplot.puts gnuplot_headder
+  #   temp_gnuplot.puts plot_line
+  temp_gnuplot.puts annotations
+  temp_gnuplot.puts plot_line
+  temp_gnuplot.close
+
+  result = `#{which('gnuplot')} "#{outdir}/#{svg_name}-spectra.gplot"`
+  # result = `rm temp.gplot`
+
 end

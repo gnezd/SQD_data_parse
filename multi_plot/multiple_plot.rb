@@ -147,9 +147,9 @@ def report(raw, nickname, pick)
 
   chroms = Array.new
   c_titles = Array.new
-  spects = Array.new
-  s_titles = Array.new
-
+  ms_spects = Array.new
+  uv_spects = Array.new
+  
   if File.directory?(raw) == false
     # Fix: make exception
     puts "Path to raw data file \"#{raw}\" doesn't exist!"
@@ -251,14 +251,18 @@ def report(raw, nickname, pick)
     end
 
     query_list[i][1].each do |range| # Prepare time domain slice spectrum
-      spect = func.extract_spect(range[0], range[1]).transpose
-      puts spect[1].size
+      spect = func.extract_spect(range[0], range[1])
+      # puts spect[1].size
       y_f = spect[1].map { |s| s.to_f }
       # Normalization necessary?
       # max_y = y_f.max
       # spect[1] = y_f.map {|y| y/max_y} if i < 3
-      spects.push spect
-      title = "#{nickname}-#{range[0]}-#{range[1]}min"
+      if func.func_num > 2
+        uv_spects.push spect
+      else
+        ms_spects.push spect
+      end
+      #title = "#{nickname}-#{range[0]}-#{range[1]}min"
       raise "wtf why can i == 0" if i == 0
 
       # title += " + * #{"%.3e" % max_y}" if i == 1
@@ -283,8 +287,8 @@ end
 
 chroms = Array.new
 c_titles = Array.new
-spects = Array.new
-s_titles = Array.new
+ms_spects = Array.new
+uv_spects = Array.new
 
 plot_list.each do |entry|
   new_chroms, new_c_titles, new_spects, new_s_titles = report(entry[0], entry[1], entry[2])

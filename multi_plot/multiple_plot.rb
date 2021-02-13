@@ -136,7 +136,7 @@ elsif !(File.exists?(listcsv))
   ARGV[0].split(',').each { |pair| options[pair.split('=')[0]] = pair.split('=')[1]}
 else
   puts "Opening instruction file #{listcsv}"
-  ARGV[1].split(',').each {|pair| options[pair.split('=')[0]] = pair.split('=')[1]}
+  ARGV[1].split(',').each {|pair| options[pair.split('=')[0]] = pair.split('=')[1]} if ARGV[1]
 end
 
 puts options
@@ -146,7 +146,7 @@ Dir.mkdir outdir
 result = `cp #{listcsv} #{outdir}/`
 
 plot_list = Array.new
-CSV.read("list.csv").each do |row|
+CSV.read(listcsv).each do |row|
   next if row[0] == 'path'
   plot_list.push([row[0], row[1], row[2..-1]])
 end

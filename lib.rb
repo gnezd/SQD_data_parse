@@ -412,7 +412,7 @@ def multi_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
 
   gnuplot_headder = <<~THE_END
     set datafile separator ','
-    set terminal svg enhanced mouse standalone
+    #set terminal svg enhanced mouse standalone
   THE_END
 
   annotations = <<~THE_END
@@ -425,8 +425,9 @@ def multi_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
     set ylabel 'Normalized ion counts' offset 2.5,0
     set y2tics scale 0.5
     set y2label 'Absorption (a.u.)' offset -  2.5,0
-    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
-    set margins 5,9,2.5,0.5
+    set terminal svg enhanced mouse standalone size 1600 600 font "Calibri, 16"
+    #set margins 5,9,2.5,0.5
+    set key outside
     set linetype 1 lc rgb "black" lw 2
     set linetype 2 lc rgb "dark-red" lw 2
     set linetype 3 lc rgb "olive" lw 2
@@ -505,7 +506,6 @@ def spectra_plot(spectra, outdir, svg_name, normalize = nil)
 
   gnuplot_headder = <<~THE_END
     set datafile separator ','
-    set terminal svg enhanced mouse standalone
   THE_END
 
   annotations = <<~THE_END
@@ -515,8 +515,9 @@ def spectra_plot(spectra, outdir, svg_name, normalize = nil)
     set mxtics 10
     set ytics nomirror scale 0.5
     set ylabel '#{spectra[0].units[1]}' offset 2.5,0
-    set terminal svg enhanced mouse standalone size 1200 600 font "Calibri, 16"
-    set margins 5,9,2.5,0.5
+    set terminal svg enhanced mouse standalone size 1600 600 font "Calibri, 16"
+    #set margins 5,9,2.5,0.5
+    set key outside
     set linetype 1 lc rgb "black" lw 2
     set linetype 2 lc rgb "dark-red" lw 2
     set linetype 3 lc rgb "olive" lw 2

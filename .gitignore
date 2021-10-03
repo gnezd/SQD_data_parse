@@ -6,3 +6,4 @@
 *.svg
 *.gplot
 *.out
+multi_plot/Plot*

@@ -5,11 +5,11 @@ def report(raw, nickname, pick)
   # Generate of chromatograms and spectrums to generate from a line list.csv
   # This function should probably be renamed
 
-  chroms = Array.new
-  c_titles = Array.new
-  ms_spects = Array.new
-  uv_spects = Array.new
-  
+  chroms = []
+  c_titles = []
+  ms_spects = []
+  uv_spects = []
+
   if File.directory?(raw) == false
     # Fix: make exception
     puts "Path to raw data file \"#{raw}\" doesn't exist!"
@@ -22,7 +22,7 @@ def report(raw, nickname, pick)
     next if query == nil
     # If some query. magic regex lazy 1-liner, assignment also works as a nil check :p
     if qmatch = query.match(/^(\D+)?([\d\.]+)\s?(?:\-)?\s?([\d\.]+)?\s?(nm|\+|\-|min)$/)
-      
+ 
       # Debug dump of parsed queries      
       puts qmatch[1..4].join '|' if $debug == 1
 
@@ -148,13 +148,15 @@ result = `cp #{listcsv} #{outdir}/`
 plot_list = Array.new
 CSV.read(listcsv).each do |row|
   next if row[0] == 'path'
+
+  # The plot instruction CSV shall be in the format of <path to raw data>, <given name to data, plotting instructions>
   plot_list.push([row[0], row[1], row[2..-1]])
 end
 
-chroms = Array.new
-c_titles = Array.new
-ms_spects = Array.new
-uv_spects = Array.new
+chroms = []
+c_titles = []
+ms_spects = []
+uv_spects = []
 
 plot_list.each do |entry|
   new_chroms, new_c_titles, new_ms_spects, new_uv_spects = report(entry[0], entry[1], entry[2])
@@ -164,11 +166,11 @@ plot_list.each do |entry|
   uv_spects += new_uv_spects
 end
 
-if !(chroms == nil || chroms == []) # If there are chromatograms to plot
-  multi_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
+unless chroms == nil || chroms == [] # If there are chromatograms to plot
+  chrom_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
 end
 
-if !(uv_spects == nil || uv_spects == []) # If there are spectra to plot
+unless uv_spects == nil || uv_spects == [] # If there are spectra to plot
   spectra_plot(uv_spects, outdir, 'uv_spect',options['normalize_uv'])
 end
 

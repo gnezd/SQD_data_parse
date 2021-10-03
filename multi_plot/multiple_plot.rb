@@ -141,9 +141,9 @@ end
 
 puts options
 
-outdir = "Plot-#{File.basename(listcsv, '.*')}-#{Time.now.strftime("%d%b%Y-%k%M%S")}"
+outdir = "Plot-#{File.basename(listcsv, '.*')}-#{Time.now.strftime("%d%b%Y-%0k%0M%0S")}"
 Dir.mkdir outdir
-result = `cp #{listcsv} #{outdir}/`
+result = `cp -v '#{listcsv}' '#{outdir}/'`
 
 plot_list = Array.new
 CSV.read(listcsv).each do |row|

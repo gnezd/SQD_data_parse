@@ -5,11 +5,11 @@ def report(raw, nickname, pick)
   # Generate of chromatograms and spectrums to generate from a line list.csv
   # This function should probably be renamed
 
-  chroms = Array.new
-  c_titles = Array.new
-  ms_spects = Array.new
-  uv_spects = Array.new
-  
+  chroms = []
+  c_titles = []
+  ms_spects = []
+  uv_spects = []
+
   if File.directory?(raw) == false
     # Fix: make exception
     puts "Path to raw data file \"#{raw}\" doesn't exist!"
@@ -21,59 +21,46 @@ def report(raw, nickname, pick)
   pick.each do |query|
     next if query == nil
     # If some query. magic regex lazy 1-liner, assignment also works as a nil check :p
-    if qmatch = query.match(/^(\D+)?([\d\.]+)\s?(?:\-)?\s?([\d\.]+)?\s?(nm|\+|\-|min)$/)
-      
-      # Debug dump of parsed queries      
+    if qmatch = query.match(/^(\D+)?([\d\.]+)\s?(?:\-)?\s?([\d\.]+)?\s?([nm|\+|\-|min]+)$/)
+      # qmatch[]: [<0:Leading non-digit, if exists>, <1:float digit>, <2:second float, if exists>, <3:type>]
+      # Debug dump of parsed queries
       puts qmatch[1..4].join '|' if $debug == 1
 
-      tolerance = 1.0 # Default spectral tolerance for spectra extraction
       chrome_spect = 0 # Default: 0 for chromatogram, 1 for spectrum
+      func_select = [0, 0, 0] # Selection of Masslynx function. 0:+ 1:- 2:uv
+      tolerance = 1.0 # Default spectral tolerance for picking extracted chromatograms.
 
-      case qmatch[4] # Which detector channel?
-      when "+" # ESI+
-        funcnum = 1
-      when "-" # ESI-
-        funcnum = 2
-      when "nm" # UV
-        funcnum = 3
-      when "min" 
-        # Spectrum!
+      if qmatch[4] == "min" # Spectrum (min$) or chromatogram(+/-/+-/nm) or ? If Chromatogram, which detector channel?
+        # This is a spectrum plot
         chrome_spect = 1
-        tolerance = 0.05 # Default rt tolerance for time slice
-
-        if qmatch[3] == nil # make range if no range was given
-          start = qmatch[2].to_f - 0.5 * tolerance
-          ending = start + tolerance
+        tolerance = 0.05 # Default rt tolerance for time slice needs to be this thin
+        if qmatch[1] == nil
+          puts "No spectrum type specified in query string \"#{query}\"! Plotting all three: ESI+, ESI- and UV."
+          func_select = [1, 1, 1]
         else
-          start, ending = qmatch[2..3].map { |s| s.to_f }.sort
+          func_select[0] = 1 if qmatch[1] =~ /\+/
+          func_select[1] = 1 if qmatch[1] =~ /\-/
+          func_select[2] = 1 if qmatch[1] =~ /uv/
         end
-
-        case qmatch[1]
-        when "+"
-          funcnum = 1
-        when "-"
-          funcnum = 2
-        when "uv"
-          funcnum = 3
-        when nil
-          puts "No spectrum type specified! Plotting all three: ESI+, ESI- and UV."
-          (1..3).each {|type| query_list[type][1].push [start, ending].sort}
-          next
-        # Early break for wildcard spectrum extraction. As long as it works...
-        else
-          puts "Query entry #{query} is problematic, skipped. #{qmatch}"
-          next
-        end
+      else  
+        func_select[0] = 1 if qmatch[4] =~ /\+/
+        func_select[1] = 1 if qmatch[4] =~ /\-/
+        func_select[2] = 1 if qmatch[4] =~ /nm/
 
       end
-
-      if qmatch[3] == nil # make range if no range was given. Should be the same as wildcard spectrum extraction case.
+      puts "Query entry #{query} is problematic, skipped. #{qmatch}" if func_select == [0, 0 , 0]
+      
+      if qmatch[3] == nil # make range if no range was given. Adjust uv-specific tolerance later in the pushing step, if necessary in the future.
         start = qmatch[2].to_f - 0.5 * tolerance
         ending = start + tolerance
       else
         start, ending = qmatch[2..3].map { |s| s.to_f }.sort
       end
-      query_list[funcnum][chrome_spect].push [start, ending].sort
+      puts "func_select: #{func_select}" if $debug == 1
+      (0..2).each do |funcnum|
+        query_list[funcnum+1][chrome_spect].push [start, ending].sort if func_select[funcnum] == 1
+        # If the said function was selected. funcnum+1 for Waters starts numbering functions with 1.
+      end
     else
       puts "Query entry #{query} is problematic, skipped."
     end
@@ -84,7 +71,8 @@ def report(raw, nickname, pick)
   puts "ESI+: #{query_list[1]}"
   puts "ESI-: #{query_list[2]}"
 
-  query_list[0..3].each_index do |i|
+  #query_list[1..3].each_index do |i|
+  (1..3).each do |i|
     #Real extraction of data
     next if query_list[i] == [[], []] # Decide if we need to open this ESI+/- or UV file. Saves time.
 
@@ -139,22 +127,24 @@ else
   ARGV[1].split(',').each {|pair| options[pair.split('=')[0]] = pair.split('=')[1]} if ARGV[1]
 end
 
-puts options
+puts "options: #{options}"
 
-outdir = "Plot-#{File.basename(listcsv, '.*')}-#{Time.now.strftime("%d%b%Y-%k%M%S")}"
+outdir = "Plot-#{File.basename(listcsv, '.*')}-#{Time.now.strftime("%d%b%Y-%0k%0M%0S")}"
 Dir.mkdir outdir
-result = `cp #{listcsv} #{outdir}/`
+result = `cp -v '#{listcsv}' '#{outdir}/'`
 
 plot_list = Array.new
 CSV.read(listcsv).each do |row|
   next if row[0] == 'path'
+
+  # The plot instruction CSV shall be in the format of <path to raw data>, <given name to data, plotting instructions>
   plot_list.push([row[0], row[1], row[2..-1]])
 end
 
-chroms = Array.new
-c_titles = Array.new
-ms_spects = Array.new
-uv_spects = Array.new
+chroms = []
+c_titles = []
+ms_spects = []
+uv_spects = []
 
 plot_list.each do |entry|
   new_chroms, new_c_titles, new_ms_spects, new_uv_spects = report(entry[0], entry[1], entry[2])
@@ -164,11 +154,11 @@ plot_list.each do |entry|
   uv_spects += new_uv_spects
 end
 
-if !(chroms == nil || chroms == []) # If there are chromatograms to plot
-  multi_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
+unless chroms == nil || chroms == [] # If there are chromatograms to plot
+  chrom_plot(chroms, c_titles, outdir, "chromatograms") if !(chroms == nil || chroms == [])
 end
 
-if !(uv_spects == nil || uv_spects == []) # If there are spectra to plot
+unless uv_spects == nil || uv_spects == [] # If there are spectra to plot
   spectra_plot(uv_spects, outdir, 'uv_spect',options['normalize_uv'])
 end
 

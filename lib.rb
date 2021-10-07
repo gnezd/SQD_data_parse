@@ -385,7 +385,7 @@ def plot(data, title, outpath) # Plot xy function with title with gnuplot
   end
 end
 
-def multi_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
+def chrom_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
   # chroms and titles should be arrays
   # or define a data class chrom? Would actually be reusable?
 

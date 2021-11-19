@@ -321,7 +321,24 @@ end
 # WHERE DO I PUT THE datatable(chroms, titles) ??
 # It's own class? or??
 
-# pack up the plotting
+# pack up the plottin
+
+class Isotopic_pattern < Hash
+  def initialize
+    super {0}
+  end
+
+  def assign(input)
+    input.each_key do |key|
+    self[key] = input[key]
+    end
+  end
+
+  def convolute(spect)
+    result = 0.0
+    spect_ptr = 0
+  end
+end
 
 class Peak
   attr_accessor :begin, :end, :height, :area, :name, :note
@@ -378,10 +395,10 @@ def plot(data, title, outpath) # Plot xy function with title with gnuplot
   temp_gnuplot.close
   gnuplot_exe = which 'gnuplot'
   if gnuplot_exe
-    result = `#{gnuplot_exe} temp.gplot`
-    result = `rm temp.gplot`
+    `#{gnuplot_exe} temp.gplot`
   else
     puts 'Gunplot not found. Please plot temp.gplot manually.'
+    result = `rm temp.gplot`
   end
 end
 

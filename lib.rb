@@ -113,7 +113,7 @@ class MasslynxFunction
     # DANGER of NOT binning!!!!! (10 Nov 2020)
     # Decides not to bin, but normalize towards chrom_width
     load_raw unless raw_loaded?
-    raise "rt out of range!" unless t_0 > @retention_time[0] && t_1 < @retention_time[-1]
+    raise "rt out of range!" unless t_0 >= @retention_time[0] && t_1 <= @retention_time[-1]
     res = 0.1 if func_num < 3 # If mass spec
 
     chrom_width = 0 # For UV normalization
@@ -180,6 +180,7 @@ class Chromatogram
   def update_info
     @rt_range = @data.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
     @signal_range = @data.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
+    @size = @data.size
   end
 
   def [](i)
@@ -315,6 +316,85 @@ class Spectrum < Array
     x = (0..size-1).map {|x| self[x][0]}
     y = (0..size-1).map {|x| self[x][1]}
     [x, y]
+  end
+ 
+  def debug_accm(i, j, coeff_a, coeff_b, slice_last, slice_current)
+        puts "At: #{i}, #{j}"# Debug
+        puts "Equations:"
+        puts "a: #{coeff_a}"
+        puts "b: #{coeff_b}"
+        puts "Slices: #{slice_last} ~ #{slice_current}, adding: #{coeff_a[0] * coeff_b[0] / 3.0 * (slice_current ** 3 - slice_last ** 3) + (coeff_a[0] * coeff_b[1] + coeff_a[1] * coeff_b[0]) / 2.0 * (slice_current ** 2 - slice_last ** 2) + (coeff_a[1] * coeff_b[1]) * (slice_current - slice_last)}"
+  end
+  
+  def *(input)
+    # puts "Multiplying #{self.size} long spectrum with #{input.size} long spectrum"
+    raise "Not multiplying a spectrum with a spectrum" unless input.is_a? Spectrum
+    # self / input defined as vector a and b
+    # Indexed by i and j
+    i = j = 0
+    # Linear interpolation a1*x + a2 coefficients
+    coeff_a = [0.0, 0.0]
+    coeff_b = [0.0, 0.0]
+    # Accumulated inner product sum
+    accum = 0.0
+    # Last integral slicing point
+    slice_last = 0.0
+    slice_current = 0.0
+
+    while i < self.size && j < input.size
+      slice_last = slice_current
+      # Integral slicing point determination
+      # self[i] and input[j] shoud point at the NEXT candidate slicing point
+      if self[i][0] < input[j][0]
+        slice_current = self[i][0]
+        # Accum
+        accum += coeff_a[0] * coeff_b[0] / 3.0 * (slice_current ** 3 - slice_last ** 3) + (coeff_a[0] * coeff_b[1] + coeff_a[1] * coeff_b[0]) / 2.0 * (slice_current ** 2 - slice_last ** 2) + (coeff_a[1] * coeff_b[1]) * (slice_current - slice_last)
+        i += 1
+        unless i < self.size && j < input.size
+          return accum
+        end
+        # Update self interpolation
+        coeff_a[0] = (self[i][1] - self[i-1][1]) / (self[i][0] - self[i-1][0])
+        coeff_a[1] = self[i][1] - coeff_a[0] * self[i][0]
+      elsif self[i][0] > input[j][0]
+        slice_current = input[j][0]
+        # Accum
+        accum += coeff_a[0] * coeff_b[0] / 3.0 * (slice_current ** 3 - slice_last ** 3) + (coeff_a[0] * coeff_b[1] + coeff_a[1] * coeff_b[0]) / 2.0 * (slice_current ** 2 - slice_last ** 2) + (coeff_a[1] * coeff_b[1]) * (slice_current - slice_last)
+        j += 1
+        unless i < self.size && j < input.size
+          return accum
+        end
+        # Update input interpolation
+        coeff_b[0] = (input[j][1] - input[j-1][1]) / (input[j][0] - input[j-1][0])
+        coeff_b[1] = input[j][1] - coeff_b[0] * input[j][0]
+      elsif self[i][0] == input[j][0]
+        slice_current = input[j][0]
+        # Accum
+        accum += coeff_a[0] * coeff_b[0] / 3.0 * (slice_current ** 3 - slice_last ** 3) + (coeff_a[0] * coeff_b[1] + coeff_a[1] * coeff_b[0]) / 2.0 * (slice_current ** 2 - slice_last ** 2) + (coeff_a[1] * coeff_b[1]) * (slice_current - slice_last)
+        i += 1
+        j += 1
+        # If the last point happens to align
+        unless i < self.size && j < input.size
+          return accum
+        end
+        # Update both interpolations
+        coeff_a[0] = (self[i][1] - self[i-1][1]) / (self[i][0] - self[i-1][0])
+        coeff_a[1] = self[i][1] - coeff_a[0] * self[i][0]
+        coeff_b[0] = (input[i][1] - input[i-1][1]) / (input[i][0] - input[i-1][0])
+        coeff_b[1] = input[i][1] - coeff_b[0] * input[i][0]
+      end
+    end
+    #debug_accm(i, j, coeff_a, coeff_b, slice_last, slice_current)
+    accum
+  end
+
+  def normalize
+    normalizer = (self * self) ** 0.5
+    result = self
+    result.each_index do |i|
+      result[i][1] /= normalizer
+    end
+    result
   end
 end
 

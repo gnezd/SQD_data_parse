@@ -18,7 +18,7 @@ puts "<cos, cos>: #{cos * cos}"
 puts "<1, sin>: #{unity * sin}"
 puts "<1, cos>: #{unity * cos}"
 
-func = MasslynxFunction.new('/mnt/g/Dropbox/LAb/After_departure/sep2021LCMS/Bode - ycd2531-H1K1-1_20210921.raw', 2)
+func = MasslynxFunction.new('./testdata/Bode - ycd2531-H1K1-1_20210921.raw', 2)
 
 spect_ext1 = func.extract_spect(3.72, 3.73)
 spect_ext2 = func.extract_spect(3.73, 3.74)

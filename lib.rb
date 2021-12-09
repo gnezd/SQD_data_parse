@@ -211,11 +211,14 @@ class Chromatogram
     # normalize to max
     update_info
     #puts [@units[0], "Normalized #{@units[1]}"]#, "#{@name}-int:#{@signal_range[1]}")
-    result = Chromatogram.new(@data.size, "#{@name}-normalized", [@units[0], "Normalized #{@units[1]}"], "#{@name}-int:#{@signal_range[1]}")
+    @name += "-normalized"
+    @units[1] ="Normalized #{@units[1]}"
+    @desc = "#{@name}-int:#{@signal_range[1]}"
     @data.each_index do |i|
-      result[i] = [@data[i][0], @data[i][1].to_f / @signal_range[1]]
+      @data[i] = [@data[i][0], @data[i][1].to_f / @signal_range[1]]
     end
-    result
+    update_info
+    self
   end
 
   def deriv
@@ -488,13 +491,19 @@ def chrom_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
 
   # create data table
   table = Array.new
+  raise "Chromatograms should be an array" unless chroms.instance_of? Array
+  raise "Something in the chromatogram array is not a chromatogram" unless chroms.all? {|chrom| chrom.instance_of? Chromatogram}
   raise "Mismatch length of chromatograms and titles!" if chroms.size != titles.size
 
-  max_chrom_length = (chroms.max_by { |chrom| chrom[0].size })[0].size
-  max_chrom_rt = (chroms.max_by {|chrome| chrome[0][-1]})[0][-1]
+  max_chrom_length = chroms.max_by { |chrom| chrom.size}.size
+  max_chrom_rt = chroms.max_by {|chrom| chrom.rt_range[1]}.rt_range[1]
+  min_signal = chroms.min_by {|chrom| chrom.signal_range[0]}
+  max_signal = chroms.max_by {|chrom| chrom.signal_range[1]}
+
   chroms.each_index do |i|
-    table.push([titles[i]] + chroms[i][0] + ([''] * (max_chrom_length - chroms[i][0].size))) # Title - x values - blank filling to the max chrom length in this plot
-    table.push([''] + chroms[i][1] + ([''] * (max_chrom_length - chroms[i][0].size))) # blank - y values - blank filling
+    rt, signal = chroms[i].transpose
+    table.push([titles[i]] + rt + ([''] * (max_chrom_length - chroms[i].size))) # Title - x values - blank filling to the max chrom length in this plot
+    table.push([''] + signal + ([''] * (max_chrom_length - chroms[i].size))) # blank - y values - blank filling
   end
   table = table.transpose
 
@@ -560,28 +569,14 @@ def chrom_plot(chroms, titles, outdir, svg_name, normalize = 'nil')
   # result = `rm temp.gplot`
 end
 
-# Cross-platform way of finding an executable in the $PATH.
-# Copied from https://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
-# which('ruby') #=> /usr/bin/ruby
-def which(cmd)
-  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
-  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
-    exts.each do |ext|
-      exe = File.join(path, "#{cmd}#{ext}")
-      return exe if File.executable?(exe) && !File.directory?(exe)
-    end
-  end
-  nil
-end
-
 # Generate csv file from various spectra and plot with gnuplot
 def spectra_plot(spectra, outdir, svg_name, normalize = nil)
   raise "Spectra should be array" unless spectra.instance_of? Array
-  raise "Somethin in the spectra array is not a spectrum" unless spectra.all? {|spectrum| spectrum.instance_of? Spectrum}
+  raise "Something in the spectra array is not a spectrum" unless spectra.all? {|spectrum| spectrum.instance_of? Spectrum}
   raise "Spectral units don't match!" unless spectra.all? {|spectrum| spectrum.units == spectra[0].units}  
 
-  max_spectral_value = spectra.max_by {|spectrum| spectrum.spectral_range[1]}.spectral_range[1]
-  min_spectral_value = spectra.max_by {|spectrum| spectrum.spectral_range[0]}.spectral_range[0]
+   max_spectral_value = spectra.max_by {|spectrum| spectrum.spectral_range[1]}.spectral_range[1]
+  min_spectral_value = spectra.max_by {|spectrum| -spectrum.spectral_range[0]}.spectral_range[0]
   max_count = spectra.max_by {|spectrum| spectrum.signal_range[1]}.signal_range[1]
   max_spectral_width = spectra.max_by {|spectrum| spectrum.size}.size
 
@@ -658,4 +653,18 @@ def spectra_plot(spectra, outdir, svg_name, normalize = nil)
   result = `#{which('gnuplot')} "#{outdir}/#{svg_name}-spectra.gplot"`
   # result = `rm temp.gplot`
 
+end
+
+# Cross-platform way of finding an executable in the $PATH.
+# Copied from https://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
+# which('ruby') #=> /usr/bin/ruby
+def which(cmd)
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+    exts.each do |ext|
+      exe = File.join(path, "#{cmd}#{ext}")
+      return exe if File.executable?(exe) && !File.directory?(exe)
+    end
+  end
+  nil
 end

@@ -85,9 +85,9 @@ def report(raw, nickname, pick)
       max_y = chrom.signal_range[1]
       # Normalize XIC but not UV trace!
       if i == 1 || i == 2
-        chroms.push chrom.normalize.transpose
+        chroms.push chrom.normalize
       elsif i == 3
-        chroms.push chrom.transpose
+        chroms.push chrom
       end
       title = "#{nickname}: #{range[0]} - #{range[1]}"
       raise "wtf why can i == 0" if i == 0
@@ -135,9 +135,9 @@ result = `cp -v '#{listcsv}' '#{outdir}/'`
 
 plot_list = Array.new
 CSV.read(listcsv).each do |row|
-  next if row[0] == 'path'
+  next if row[0] =~ /\<path\>/
 
-  # The plot instruction CSV shall be in the format of <path to raw data>, <given name to data, plotting instructions>
+  # The plot instruction CSV shall be in the format of <path to raw data>, <given name to data>, plotting instructions>
   plot_list.push([row[0], row[1], row[2..-1]])
 end
 

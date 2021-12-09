@@ -1,0 +1,57 @@
+$$ Version: 01.00
+$$ Acquired Name: Bode - ycd2531-H1K1-1_20210921
+$$ Acquired Date: 21-Sep-2021
+$$ Acquired Time: 21:56:08
+$$ Job Code: Bode - ycd2531-H1K1
+$$ Task Code: 
+$$ User Name: Bode - xxx
+$$ Instrument: ACQ-SQD2#LCA766
+$$ Conditions: 
+$$ Laboratory Name: 
+$$ Sample Description: 
+$$ Solvent Delay: 0.0000
+$$ Submitter: Bode - xxx
+$$ SampleID: Bode - ycd2531-H1K1-1_20210921
+$$ Bottle Number: 1:21
+$$ Plate Desc: 01TL,XY,SD,1: 6,2: 8,3:140.0,4:140.0,5:  0.0,6:  0.0,7:O,8:O,9:1280.0,10:860.0,11:320.0,12:120.0,13:150.0,14: 83.0
+$$ Cal MS1 Static: -1.358221292993803e-1,1.000421036867113e0,-1.834813943598947e-7,8.581003759851749e-11,-1.560991725278938e-14,T0
+$$ Cal MS2 Static: ,T0
+$$ Associated Datafile: 
+$$ Cal MS1 Static Params: 20,3023,0.00,5.00,11.3,15.1,-0.2,Naics,STAT
+$$ Cal MS1 Dynamic Params: 10,3072,30.6200,-1.00,11.3,15.1,-0.2,Naics,SCN
+$$ Cal MS1 Fast Params: 10,3072,0.2041,-1.00,11.3,15.1,-0.2,Naics,FAST
+$$ Cal MS2 Static Params: 0,0,0.00,0.00,0.0,0.0,0.0,,
+$$ Cal MS2 Dynamic Params: 0,0,0.0000,0.00,0.0,0.0,0.0,,
+$$ Cal MS2 Fast Params: 0,0,0.0000,0.00,0.0,0.0,0.0,,
+$$ Cal Time: 12:32
+$$ Cal Date: 08/27/20
+$$ Analog Channel 1 Offset: 0.000
+$$ Analog Channel 2 Offset: 0.000
+$$ Analog Channel 3 Offset: 0.000
+$$ Analog Channel 4 Offset: 0.000
+$$ Mux Stream: 0
+$$ Cal Temperature: 0.0000000
+$$ Inlet Method: E:\Masslynx Projects\MoBiAS open access.PRO\ACQUDB\ACN_H2O_FullRange
+$$ Inlet Prerun Method: 
+$$ Inlet Postrun Method: 
+$$ Inlet Switch Method: E:\Masslynx Projects\MoBiAS open access.PRO\ACQUDB\Switch_ACN_H2O_FullRange_and_Polar
+$$ HPLC Method: 
+$$ MS Method: E:\Masslynx Projects\MoBiAS open access.PRO\ACQUDB\MidMass_200_1000Da_PosNeg.EXP
+$$ Tune Method: E:\Masslynx Projects\MoBiAS open access.PRO\ACQUDB\Instrument_OA_settings_SQD3_Jun2017.IPR
+$$ FractionLynx Method: 
+$$ Spare1: 
+$$ Spare2: 
+$$ Spare3: 
+$$ Spare4: 
+$$ Spare5: 
+$$ Reinjections: 0
+$$ PIC MRM Function:  
+$$ PIC Scan Function: 0,0
+$$ ScanWave Func List: 
+$$ Calibration File: C:\MassLynx\IntelliStart\Results\Unit Resolution\Calibration_20200827.cal
+$$ Cal Function 1: -3.003910215637485e-1,1.000384315286307e0,-1.551247512344409e-7,8.144650973712004e-11,-1.502966257354177e-14,T0
+$$ Cal Function 2: -3.003910215637485e-1,1.000384315286307e0,-1.551247512344409e-7,8.144650973712004e-11,-1.502966257354177e-14,T0
+$$ Cal StdDev Function 1: 1.336181004958138e-2
+$$ Cal StdDev Function 2: 1.336181004958138e-2
+$$ Cal CoVar 1: 0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0
+$$ Cal CoVar 2: 0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0,0.000000000000000e0

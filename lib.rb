@@ -189,9 +189,11 @@ class Chromatogram
   end
 
   def update_info
+    return inspect if @data == []
     @rt_range = @data.minmax_by { |pt| pt[0] }.map{ |pt| pt[0] }
     @signal_range = @data.minmax_by { |pt| pt[1] }.map{ |pt| pt[1] }
     @size = @data.size
+    return inspect
   end
 
   def [](i)

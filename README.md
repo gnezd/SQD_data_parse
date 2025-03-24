@@ -6,13 +6,13 @@
 
 ## Usage
 ### For Rubyists
-```
+```ruby
 require 'lib.rb' 
 ```
 ### For plotting users
 1. Edit `list.csv` in `multi_plot` to indicate path to the raw datafile and m/z / wavelength / retention pickings.
 2. Open terminal
-```
+```bash
 cd multi_plot
 ruby multiple_plot.rb
 ```

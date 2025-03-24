@@ -157,6 +157,17 @@ class MasslynxFunction
     result.update_info
     result
   end
+
+  def conv(filter)
+    raise "filter is not a Spectrum" unless filter.is_a? Spectrum
+    pdct = Chromatogram.new(0, 'Picked', ['min', 'a.u.'])
+    (0..@size-2).each do |i|
+      spect = self.extract_spect(@retention_time[i], (@retention_time[i] + @retention_time[i+1]) * 0.5)
+      pdct.push [@retention_time[i], spect * filter]
+    end
+    pdct.update_info
+    return pdct
+  end
 end
 
 class Chromatogram
